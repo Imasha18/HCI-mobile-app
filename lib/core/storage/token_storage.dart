@@ -1,0 +1,3 @@
+class TokenStorage {
+  String? token;
+}
