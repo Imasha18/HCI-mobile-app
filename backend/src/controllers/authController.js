@@ -16,6 +16,7 @@ async function login(req, res) {
   const { email, password } = req.body;
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Invalid email or password' });
+  if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
   return sendSuccess(res, { user: { id: user.id, name: user.name, email: user.email, role: user.role }, token: generateToken(user) }, 'Signed in');
 }
 
