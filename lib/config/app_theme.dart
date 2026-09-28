@@ -14,7 +14,10 @@ class AppTheme {
       brightness: Brightness.light,
       surface: _background,
     ),
-    textTheme: GoogleFonts.manropeTextTheme().apply(bodyColor: _ink, displayColor: _ink),
+    textTheme: GoogleFonts.manropeTextTheme().apply(
+      bodyColor: _ink,
+      displayColor: _ink,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
