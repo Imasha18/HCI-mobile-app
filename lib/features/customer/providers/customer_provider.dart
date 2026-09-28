@@ -35,14 +35,19 @@ class CustomerNotifier extends Notifier<CustomerState> {
         state = const CustomerState(error: 'This login is for customers only.');
         return false;
       }
-      await _storage.write(key: 'auth_token', value: payload['token'] as String);
+      await _storage.write(
+        key: 'auth_token',
+        value: payload['token'] as String,
+      );
       state = CustomerState(user: user);
       return true;
     } on DioException catch (error) {
       final message = error.response?.data is Map
           ? (error.response?.data['message'] as String?)
           : null;
-      state = CustomerState(error: message ?? 'Unable to sign in. Check your connection.');
+      state = CustomerState(
+        error: message ?? 'Unable to sign in. Check your connection.',
+      );
       return false;
     }
   }
