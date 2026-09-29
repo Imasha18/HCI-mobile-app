@@ -74,7 +74,15 @@ class CartScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-        error: (error, _) => Center(child: Text('Unable to load cart: $error')),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              error.toString().replaceFirst('Exception: ', ''),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
       ),
     );

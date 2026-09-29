@@ -22,6 +22,26 @@ class CustomerNotifier extends Notifier<CustomerState> {
   @override
   CustomerState build() => const CustomerState();
 
+  Future<bool> restoreSession() async {
+    final token = await _storage.read(key: 'auth_token');
+    if (token == null || token.isEmpty) return false;
+    try {
+      final response = await ApiClient().dio.get('/auth/me');
+      final user = response.data['data'] as Map<String, dynamic>;
+      if (user['role'] != 'customer') return false;
+      state = CustomerState(user: user);
+      return true;
+    } on DioException {
+      await logout();
+      return false;
+    }
+  }
+
+  Future<void> logout() async {
+    await _storage.delete(key: 'auth_token');
+    state = const CustomerState();
+  }
+
   Future<bool> login(String email, String password) async {
     state = const CustomerState(isLoading: true);
     try {
@@ -42,12 +62,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
       state = CustomerState(user: user);
       return true;
     } on DioException catch (error) {
-      final message = error.response?.data is Map
-          ? (error.response?.data['message'] as String?)
-          : null;
-      state = CustomerState(
-        error: message ?? 'Unable to sign in. Check your connection.',
-      );
+      state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }
   }

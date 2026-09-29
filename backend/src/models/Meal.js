@@ -7,6 +7,10 @@ const mealSchema = new mongoose.Schema({
   price: { type: Number, required: true, min: 0 },
   category: String,
   imageUrl: String,
+  ingredients: [String],
+  dietaryInformation: [String],
+  prepTimeMinutes: Number,
+  rating: { type: Number, min: 0, max: 5, default: 0 },
   available: { type: Boolean, default: true },
 }, { timestamps: true });
 
