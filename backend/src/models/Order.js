@@ -6,6 +6,7 @@ const orderSchema = new mongoose.Schema({
   rider: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   items: [{ meal: { type: mongoose.Schema.Types.ObjectId, ref: 'Meal' }, quantity: Number, price: Number }],
   total: { type: Number, required: true, min: 0 },
+  paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
   status: { type: String, default: 'pending' },
   deliveryAddress: String,
 }, { timestamps: true });

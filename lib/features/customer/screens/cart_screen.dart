@@ -1,1 +1,113 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../config/app_routes.dart';
+import '../providers/cart_provider.dart';
+
+class CartScreen extends ConsumerWidget {
+  const CartScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Your cart')),
+      body: cart.when(
+        data: (value) => value.items.isEmpty
+            ? const Center(child: Text('Your cart is empty'))
+            : Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      children: value.items
+                          .map(
+                            (item) => ListTile(
+                              title: Text(item.meal.name),
+                              subtitle: Text(
+                                'Rs ${item.meal.price.toStringAsFixed(2)}',
+                              ),
+                              leading: IconButton(
+                                onPressed: () => ref
+                                    .read(cartProvider.notifier)
+                                    .updateQuantity(
+                                      item.meal.id,
+                                      item.quantity - 1,
+                                    ),
+                                icon: const Icon(Icons.remove),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('${item.quantity}'),
+                                  IconButton(
+                                    onPressed: () => ref
+                                        .read(cartProvider.notifier)
+                                        .updateQuantity(
+                                          item.meal.id,
+                                          item.quantity + 1,
+                                        ),
+                                    icon: const Icon(Icons.add),
+                                  ),
+                                  IconButton(
+                                    onPressed: () => ref
+                                        .read(cartProvider.notifier)
+                                        .remove(item.meal.id),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Subtotal'),
+                            Text(
+                              'Rs ${value.subtotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.checkout),
+                          child: const Text('Continue Checkout'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  error.toString().replaceFirst('Exception: ', ''),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: () => ref.invalidate(cartProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+}

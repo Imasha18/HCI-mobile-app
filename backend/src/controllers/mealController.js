@@ -3,8 +3,26 @@ const mongoose = require('mongoose');
 const { sendSuccess } = require('../utils/apiResponse');
 
 async function listMeals(req, res) {
-  const filter = req.query.category ? { category: req.query.category, available: true } : { available: true };
-  return sendSuccess(res, await Meal.find(filter).populate('cook', 'name'));
+  const filter = { available: true };
+  if (req.query.category) filter.category = req.query.category;
+  if (req.query.minPrice || req.query.maxPrice) {
+    filter.price = {};
+    if (req.query.minPrice) filter.price.$gte = Number(req.query.minPrice);
+    if (req.query.maxPrice) filter.price.$lte = Number(req.query.maxPrice);
+  }
+  if (req.query.rating) filter.rating = { $gte: Number(req.query.rating) };
+  if (req.query.q) {
+    filter.$or = [
+      { name: { $regex: req.query.q, $options: 'i' } },
+      { description: { $regex: req.query.q, $options: 'i' } },
+      { category: { $regex: req.query.q, $options: 'i' } },
+    ];
+  }
+  return sendSuccess(res, await Meal.find(filter).populate('cook', 'name address phone'));
+}
+
+async function searchMeals(req, res) {
+  return listMeals(req, res);
 }
 
 async function getMeal(req, res) {
@@ -21,4 +39,4 @@ async function createMeal(req, res) {
   return sendSuccess(res, meal, 'Meal created', 201);
 }
 
-module.exports = { listMeals, getMeal, createMeal };
+module.exports = { listMeals, searchMeals, getMeal, createMeal };
