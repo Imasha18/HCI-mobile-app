@@ -31,8 +31,9 @@ class MealNotifier extends AsyncNotifier<List<MealModel>> {
       state = AsyncData(meals);
       return meals;
     } on DioException catch (error, stackTrace) {
-      state = AsyncError(ApiClient.messageFrom(error), stackTrace);
-      rethrow;
+      final exception = Exception(ApiClient.messageFrom(error));
+      state = AsyncError(exception, stackTrace);
+      Error.throwWithStackTrace(exception, stackTrace);
     }
   }
 

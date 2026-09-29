@@ -19,7 +19,10 @@ class CartNotifier extends AsyncNotifier<CartModel> {
           ? const CartModel()
           : CartModel.fromJson(data as Map<String, dynamic>);
     } on DioException catch (error, stackTrace) {
-      throw AsyncError(ApiClient.messageFrom(error), stackTrace);
+      Error.throwWithStackTrace(
+        Exception(ApiClient.messageFrom(error)),
+        stackTrace,
+      );
     }
   }
 

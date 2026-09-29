@@ -69,7 +69,17 @@ class CustomerHomeScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           meals.when(
             data: (items) => _mealList(context, items),
-            error: (error, _) => Text('Unable to load meals: $error'),
+            error: (error, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(error.toString().replaceFirst('Exception: ', '')),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => ref.invalidate(mealProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
             loading: () => const Center(child: CircularProgressIndicator()),
           ),
           const SizedBox(height: 16),
