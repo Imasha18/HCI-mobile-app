@@ -43,6 +43,16 @@ class CustomerNotifier extends Notifier<CustomerState> {
   }
 
   Future<bool> login(String email, String password) async {
+    if (email.trim().isEmpty || password.trim().isEmpty) {
+      state = const CustomerState(error: 'Email and password are required.');
+      return false;
+    }
+    if (password.trim().length < 6) {
+      state = const CustomerState(
+        error: 'Password must be at least 6 characters.',
+      );
+      return false;
+    }
     state = const CustomerState(isLoading: true);
     try {
       final response = await ApiClient().dio.post(
@@ -62,6 +72,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
       state = CustomerState(user: user);
       return true;
     } on DioException catch (error) {
+      await _storage.delete(key: 'auth_token');
       state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }

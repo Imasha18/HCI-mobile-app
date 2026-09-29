@@ -13,7 +13,8 @@ async function register(req, res) {
 }
 
 async function login(req, res) {
-  const { email, password } = req.body;
+  const email = req.body.email.trim().toLowerCase();
+  const { password } = req.body;
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Invalid email or password' });
   if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
