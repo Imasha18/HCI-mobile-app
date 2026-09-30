@@ -6,6 +6,7 @@ const generateToken = require('../utils/generateToken');
 const { sendSuccess } = require('../utils/apiResponse');
 const environment = require('../config/environment');
 const { sendVerificationCode, sendPasswordResetCode } = require('../services/emailService');
+const { notifyAdminNewVerification } = require('../services/notificationService');
 
 function publicUser(user) {
   return {
@@ -22,6 +23,8 @@ function publicUser(user) {
     kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
     vehicleDetails: user.vehicleDetails || { type: 'Motorbike', model: 'Honda Dio', plateNumber: 'WP BZ-4892' },
     emailVerified: user.emailVerified,
+    isBlocked: user.isBlocked ?? false,
+    verificationStatus: user.verificationStatus || 'approved',
   };
 }
 
@@ -30,96 +33,101 @@ function createVerificationCode() {
 }
 
 async function register(req, res) {
-  const { name, email, password, role } = req.body;
+  const { role } = req.body;
+  if (role === 'cook') {
+    return registerCook(req, res);
+  }
+  if (role === 'rider') {
+    return registerRider(req, res);
+  }
+
+  const { name, email, password } = req.body;
   const existing = await User.findOne({ email: email.trim().toLowerCase() });
   if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
   const hashedPassword = await bcrypt.hash(password, 12);
-  if (role === 'cook') {
-    const user = await User.create({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: hashedPassword,
-      role: 'cook',
-      phone: req.body.phone?.trim() || '',
-      address: req.body.address?.trim() || '',
-      kitchenName: req.body.kitchenName?.trim() || `${name.trim()}'s Kitchen`,
-      isVerified: true,
-      emailVerified: true,
-    });
-    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook account created', 201);
-  }
-  if (role === 'rider') {
-    const user = await User.create({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: hashedPassword,
-      role: 'rider',
-      phone: req.body.phone?.trim() || '+94 77 123 4567',
-      address: req.body.address?.trim() || 'Colombo, Sri Lanka',
-      vehicleDetails: {
-        type: req.body.vehicleType?.trim() || 'Motorbike',
-        model: req.body.vehicleModel?.trim() || 'Honda Dio',
-        plateNumber: req.body.vehiclePlateNumber?.trim() || 'WP BZ-4892',
-      },
-      isVerified: true,
-      emailVerified: true,
-    });
-    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider account created', 201);
-  }
+
   const code = createVerificationCode();
-  const user = await User.create({ name: name.trim(), email: email.trim().toLowerCase(), password: hashedPassword, role: 'customer', emailVerified: false, verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'), verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000 });
+  const user = await User.create({
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    password: hashedPassword,
+    role: 'customer',
+    emailVerified: false,
+    verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'),
+    verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000,
+  });
   await sendVerificationCode(user.email, code);
   return sendSuccess(res, { user: publicUser(user), emailVerificationRequired: true }, 'Verification code sent', 201);
 }
 
 async function registerRider(req, res) {
-  const { name, email, password, phone, vehicleType, vehicleModel, vehiclePlateNumber } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+  try {
+    const { name, email, password, phone, address, vehicleType, vehicleModel, vehiclePlateNumber } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: 'rider',
+      phone: phone?.trim() || '+94 77 123 4567',
+      address: address?.trim() || 'Colombo, Sri Lanka',
+      vehicleDetails: {
+        type: vehicleType?.trim() || 'Motorbike',
+        model: vehicleModel?.trim() || 'Honda Dio',
+        plateNumber: vehiclePlateNumber?.trim() || 'WP BZ-4892',
+      },
+      isVerified: true,
+      emailVerified: true,
+      verificationStatus: 'approved',
+      verificationDocuments: [
+        { title: 'Driving License (Front & Back)', documentUrl: 'https://homebite.lk/docs/license.pdf', status: 'approved' },
+        { title: 'Vehicle Revenue License 2026', documentUrl: 'https://homebite.lk/docs/revenue.pdf', status: 'approved' },
+      ],
+    });
+    notifyAdminNewVerification(user).catch(() => {});
+    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider registered successfully', 201);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
-  const hashedPassword = await bcrypt.hash(password, 12);
-  const user = await User.create({
-    name: name.trim(),
-    email: normalizedEmail,
-    password: hashedPassword,
-    role: 'rider',
-    phone: phone?.trim() || '+94 77 123 4567',
-    address: req.body.address?.trim() || 'Colombo, Sri Lanka',
-    vehicleDetails: {
-      type: vehicleType?.trim() || 'Motorbike',
-      model: vehicleModel?.trim() || 'Honda Dio',
-      plateNumber: vehiclePlateNumber?.trim() || 'WP BZ-4892',
-    },
-    isVerified: true,
-    emailVerified: true,
-  });
-  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider registered successfully', 201);
 }
 
 async function registerCook(req, res) {
-  const { name, email, password, phone, address, kitchenName } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+  try {
+    const { name, email, password, phone, address, kitchenName } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: 'cook',
+      phone: phone?.trim() || '+94 77 123 4567',
+      address: address?.trim() || 'Colombo, Sri Lanka',
+      kitchenName: kitchenName?.trim() || `${name.trim()}'s Kitchen`,
+      isVerified: true,
+      emailVerified: true,
+      verificationStatus: 'approved',
+      verificationDocuments: [
+        { title: 'Food Hygiene Certificate', documentUrl: 'https://homebite.lk/cert/hygiene.pdf', status: 'approved' },
+        { title: 'National Identity Card (NIC)', documentUrl: 'https://homebite.lk/nic/front.jpg', status: 'approved' },
+      ],
+    });
+    notifyAdminNewVerification(user).catch(() => {});
+    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook registered successfully', 201);
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
-  const hashedPassword = await bcrypt.hash(password, 12);
-  const user = await User.create({
-    name: name.trim(),
-    email: normalizedEmail,
-    password: hashedPassword,
-    role: 'cook',
-    phone: phone?.trim() || '',
-    address: address?.trim() || '',
-    kitchenName: kitchenName?.trim() || `${name.trim()}'s Kitchen`,
-    isVerified: true,
-    emailVerified: true,
-  });
-  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook registered successfully', 201);
 }
 
 async function login(req, res) {
@@ -128,6 +136,9 @@ async function login(req, res) {
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ success: false, message: 'Invalid email or password' });
+  }
+  if (user.isBlocked) {
+    return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
   }
   if (role && user.role !== role) {
     return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });

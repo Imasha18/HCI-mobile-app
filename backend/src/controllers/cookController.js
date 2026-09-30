@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { sendSuccess } = require('../utils/apiResponse');
 const User = require('../models/User');
 const Meal = require('../models/Meal');
@@ -66,9 +67,13 @@ async function getCookDashboard(req, res) {
     createdAt: { $gte: startOfToday },
   });
 
+  const cookObjectId = mongoose.Types.ObjectId.isValid(cookId)
+    ? new mongoose.Types.ObjectId(cookId)
+    : cookId;
+
   // Calculate revenue from completed or accepted orders
   const revenueAgg = await Order.aggregate([
-    { $match: { cook: new User()._id.constructor(cookId), status: { $ne: 'Rejected' } } },
+    { $match: { cook: cookObjectId, status: { $nin: ['Rejected', 'Cancelled'] } } },
     { $group: { _id: null, total: { $sum: '$total' } } },
   ]);
   const totalRevenue = revenueAgg[0]?.total || 0;
@@ -83,15 +88,15 @@ async function getCookDashboard(req, res) {
   return sendSuccess(res, {
     cook: {
       name: cook?.name || 'Home Cook',
-      kitchenName: cook?.kitchenName || 'My Kitchen',
+      kitchenName: cook?.kitchenName || (cook?.name ? `${cook.name}'s Kitchen` : 'My Kitchen'),
       profileImage: cook?.profileImage || '',
       isOnline: cook?.isOnline ?? true,
-      rating: cook?.rating || 4.8,
+      rating: cook?.rating ?? 5.0,
     },
     statistics: {
       todayOrders,
       totalRevenue,
-      averageRating: cook?.rating || 4.8,
+      averageRating: cook?.rating ?? 5.0,
     },
     recentOrders,
   });
