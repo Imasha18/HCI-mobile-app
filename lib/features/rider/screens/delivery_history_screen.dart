@@ -60,43 +60,43 @@ class _DeliveryHistoryScreenState extends ConsumerState<DeliveryHistoryScreen> {
   }
 
   Widget _buildSampleOrEmpty(BuildContext context) {
-    // Provide realistic fallback history if none in DB yet
-    final samples = [
-      {
-        '_id': 'DEL-84920001',
-        'orderId': {'_id': 'ORD-8492'},
-        'cookId': {'kitchenName': "Amma's Spice Kitchen", 'name': 'Sunethra Perera'},
-        'customerId': {'name': 'Nimal Jayasuriya', 'address': '18 Flower Road, Colombo 07'},
-        'deliveryFee': 450.0,
-        'createdAt': '2026-10-04T14:30:00.000Z',
-        'status': 'DELIVERED',
-      },
-      {
-        '_id': 'DEL-84920002',
-        'orderId': {'_id': 'ORD-7721'},
-        'cookId': {'kitchenName': 'Kottu Express Home', 'name': 'Mohamed Rizwan'},
-        'customerId': {'name': 'Dilini Fernando', 'address': '42 Dharmapala Mawatha, Colombo 03'},
-        'deliveryFee': 500.0,
-        'createdAt': '2026-10-04T12:15:00.000Z',
-        'status': 'DELIVERED',
-      },
-      {
-        '_id': 'DEL-84920003',
-        'orderId': {'_id': 'ORD-6309'},
-        'cookId': {'kitchenName': 'Ceylon Curry Pot', 'name': 'Anula Silva'},
-        'customerId': {'name': 'Kasun Mendis', 'address': '102 Havelock Road, Colombo 05'},
-        'deliveryFee': 350.0,
-        'createdAt': '2026-10-03T18:45:00.000Z',
-        'status': 'DELIVERED',
-      },
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: samples.length,
-      itemBuilder: (context, index) {
-        return _DeliveryHistoryCard(delivery: samples[index]);
-      },
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: RiderTheme.secondaryGreen,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delivery_dining_outlined,
+                size: 40,
+                color: RiderTheme.primaryGreen,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No delivery history yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: RiderTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your completed deliveries and earnings will appear here once you fulfill customer orders.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: RiderTheme.textMuted),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

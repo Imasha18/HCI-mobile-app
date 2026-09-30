@@ -238,11 +238,11 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
     final state = ref.watch(riderProvider);
     final rider = state.rider;
 
-    final name = rider?['name'] as String? ?? 'Kamal Perera';
-    final email = rider?['email'] as String? ?? 'rider@homebite.com';
-    final phone = rider?['phone'] as String? ?? '+94 77 555 9876';
+    final name = rider?['name'] as String? ?? 'Delivery Rider';
+    final email = rider?['email'] as String? ?? '';
+    final phone = rider?['phone'] as String? ?? '';
     final profileImage = rider?['profileImage'] as String?;
-    final rating = (rider?['rating'] ?? 4.9).toString();
+    final rating = (rider?['rating'] ?? 5.0).toString();
     final vehicle = rider?['vehicleDetails'] as Map<String, dynamic>?;
 
     return Scaffold(

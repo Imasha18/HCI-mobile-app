@@ -7,6 +7,7 @@ const Order = require('../models/Order');
 const Delivery = require('../models/Delivery');
 const Earning = require('../models/Earning');
 const Notification = require('../models/Notification');
+const Complaint = require('../models/Complaint');
 
 async function seedAll() {
   console.log('--- Connecting to MongoDB Atlas for Full 3-Module Integration Seeding ---');
@@ -17,6 +18,78 @@ async function seedAll() {
   const cookHash = await bcrypt.hash('cook123', 12);
   const customerHash = await bcrypt.hash('customer123', 12);
   const riderHash = await bcrypt.hash('rider123', 12);
+  const adminHash = await bcrypt.hash('admin123', 12);
+
+  // 0. Seed Administrator
+  console.log('0. Seeding System Administrator...');
+  const admin = await User.findOneAndUpdate(
+    { email: 'admin@homebite.com' },
+    {
+      name: 'System Administrator',
+      email: 'admin@homebite.com',
+      password: adminHash,
+      role: 'admin',
+      phone: '+94 77 000 0001',
+      address: 'HomeBite HQ, Colombo 03, Sri Lanka',
+      profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=500&q=80',
+      isVerified: true,
+      emailVerified: true,
+      verificationStatus: 'approved',
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  // Seed pending cook for verification queue
+  await User.findOneAndUpdate(
+    { email: 'pendingcook@homebite.com' },
+    {
+      name: 'Priyani Fernando',
+      email: 'pendingcook@homebite.com',
+      password: cookHash,
+      role: 'cook',
+      phone: '+94 77 888 1234',
+      address: '32 Temple Road, Negombo',
+      kitchenName: "Priyani's Heritage Spices",
+      profileImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&q=80',
+      isVerified: false,
+      verificationStatus: 'pending',
+      rating: 5.0,
+      emailVerified: true,
+      verificationDocuments: [
+        { title: 'Food Hygiene Certificate', documentUrl: 'https://example.com/hygiene-cert.pdf', status: 'pending' },
+        { title: 'National Identity Card (NIC)', documentUrl: 'https://example.com/nic-front.jpg', status: 'pending' },
+      ],
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  // Seed pending rider for verification queue
+  await User.findOneAndUpdate(
+    { email: 'pendingrider@homebite.com' },
+    {
+      name: 'Kasun Wickramasinghe',
+      email: 'pendingrider@homebite.com',
+      password: riderHash,
+      role: 'rider',
+      phone: '+94 71 444 7890',
+      address: '15 Highlevel Road, Nugegoda',
+      profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80',
+      isVerified: false,
+      verificationStatus: 'pending',
+      rating: 5.0,
+      emailVerified: true,
+      vehicleDetails: {
+        type: 'Motorbike',
+        model: 'Yamaha FZ 150',
+        plateNumber: 'WP CAR-1029',
+      },
+      verificationDocuments: [
+        { title: 'Driving License (Front & Back)', documentUrl: 'https://example.com/license.pdf', status: 'pending' },
+        { title: 'Vehicle Revenue License 2026', documentUrl: 'https://example.com/revenue-license.pdf', status: 'pending' },
+      ],
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
   // 1. Seed Home Cook (Supplier)
   console.log('1. Seeding Home Cook...');
@@ -271,9 +344,37 @@ async function seedAll() {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
+  // 8. Seed Complaints for Admin moderation
+  console.log('8. Seeding Complaints for Admin moderation...');
+  await Complaint.findOneAndUpdate(
+    { subject: 'Late delivery issue' },
+    {
+      user: customer._id,
+      order: order1._id,
+      subject: 'Late delivery issue',
+      description: 'The driver arrived 20 minutes past the estimated arrival time, but the food was still warm.',
+      status: 'pending',
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  await Complaint.findOneAndUpdate(
+    { subject: 'Missing item in package' },
+    {
+      user: customer._id,
+      order: order2._id,
+      subject: 'Missing item in package',
+      description: 'Ordered two curry dishes but only one portion of cutlery was provided.',
+      status: 'pending',
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
   console.log('\n======================================================');
-  console.log('✅ ALL THREE MODULES SUCCESSFULLY SEEDED & INTEGRATED!');
+  console.log('✅ ALL FOUR MODULES SUCCESSFULLY SEEDED & INTEGRATED!');
   console.log('======================================================');
+  console.log('0. SYSTEM ADMINISTRATOR:');
+  console.log(`   Email: ${admin.email} | Password: admin123`);
   console.log('1. HOME COOK:');
   console.log(`   Email: ${cook.email} | Password: cook123`);
   console.log(`   Kitchen: ${cook.kitchenName} (${seededMeals.length} Sri Lankan dishes live)`);

@@ -55,14 +55,14 @@ class _CookDashboardScreenState extends ConsumerState<CookDashboardScreen> {
     final stats = dashboard?['statistics'] as Map<String, dynamic>?;
     final recentOrders = (dashboard?['recentOrders'] as List<dynamic>?) ?? [];
 
-    final cookName = cookInfo?['name'] as String? ?? state.cook?['name'] ?? 'Chef Sunethra';
-    final kitchenName = cookInfo?['kitchenName'] as String? ?? "Amma's Spice Kitchen";
-    final profileImage = cookInfo?['profileImage'] as String? ?? '';
-    final rating = (cookInfo?['rating'] as num?)?.toDouble() ?? 4.9;
+    final cookName = cookInfo?['name'] as String? ?? state.cook?['name'] as String? ?? 'Home Cook';
+    final kitchenName = cookInfo?['kitchenName'] as String? ?? state.cook?['kitchenName'] as String? ?? (state.cook?['name'] != null ? "${state.cook!['name']}'s Kitchen" : 'Home Kitchen');
+    final profileImage = cookInfo?['profileImage'] as String? ?? state.cook?['profileImage'] as String? ?? '';
+    final rating = (cookInfo?['rating'] as num?)?.toDouble() ?? (state.cook?['rating'] as num?)?.toDouble() ?? 5.0;
     final isOnline = state.isOnline;
 
-    final todayOrdersCount = stats?['todayOrders'] ?? 8;
-    final totalRevenue = (stats?['totalRevenue'] as num?)?.toDouble() ?? 14250.00;
+    final todayOrdersCount = (stats?['todayOrders'] as num?)?.toInt() ?? 0;
+    final totalRevenue = (stats?['totalRevenue'] as num?)?.toDouble() ?? 0.0;
     final avgRating = (stats?['averageRating'] as num?)?.toDouble() ?? rating;
 
     return Scaffold(

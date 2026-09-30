@@ -23,6 +23,7 @@ class AppRoutes {
 
   // Cook Module Routes
   static const cookLogin = '/cook-login';
+  static const cookRegister = '/cook-register';
   static const cookDashboard = '/cook-dashboard';
   static const manageMenu = '/cook-manage-menu';
   static const addMeal = '/cook-add-meal';
@@ -37,6 +38,7 @@ class AppRoutes {
 
   // Rider Module Routes
   static const riderLogin = '/rider-login';
+  static const riderRegister = '/rider-register';
   static const riderDashboard = '/rider-dashboard';
   static const deliveryRequests = '/rider-delivery-requests';
   static const deliveryRequestDetails = '/rider-delivery-details';
@@ -49,4 +51,20 @@ class AppRoutes {
   static const deliveryHistory = '/rider-delivery-history';
   static const riderProfile = '/rider-profile';
   static const riderNotifications = '/rider-notifications';
+
+  // Admin Module Routes
+  static const adminLogin = '/admin-login';
+  static const adminDashboard = '/admin-dashboard';
+  static const adminUsers = '/admin-users';
+  static const adminCustomers = '/admin-customers';
+  static const adminCooks = '/admin-cooks';
+  static const adminRiders = '/admin-riders';
+  static const adminVerification = '/admin-verification';
+  static const adminMeals = '/admin-meals';
+  static const adminOrders = '/admin-orders';
+  static const adminComplaints = '/admin-complaints';
+  static const adminReports = '/admin-reports';
+  static const adminStatistics = '/admin-statistics';
+  static const adminNotifications = '/admin-notifications';
+  static const adminProfile = '/admin-profile';
 }
