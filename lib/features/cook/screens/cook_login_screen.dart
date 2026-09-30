@@ -306,11 +306,7 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('New cook registrations are automatically approved with demo account.'),
-                              ),
-                            );
+                            Navigator.pushNamed(context, AppRoutes.cookRegister);
                           },
                           child: const Text(
                             'Create account',

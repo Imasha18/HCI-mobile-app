@@ -93,6 +93,62 @@ class RiderNotifier extends StateNotifier<RiderState> {
     }
   }
 
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+    String? address,
+    String? vehicleType,
+    String? vehicleModel,
+    String? vehiclePlateNumber,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.post(
+        '/auth/register-rider',
+        data: {
+          'name': name.trim(),
+          'email': email.trim(),
+          'password': password,
+          'phone': phone?.trim() ?? '+94 77 123 4567',
+          'address': address?.trim() ?? 'Colombo, Sri Lanka',
+          'vehicleType': vehicleType?.trim() ?? 'Motorbike',
+          'vehicleModel': vehicleModel?.trim() ?? 'Honda Dio',
+          'vehiclePlateNumber': vehiclePlateNumber?.trim() ?? 'WP BZ-4892',
+          'role': 'rider',
+        },
+      );
+
+      final data = response.data['data'] as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = data['user'] as Map<String, dynamic>;
+
+      await _storage.write(key: 'auth_token', value: token);
+
+      state = state.copyWith(
+        isLoading: false,
+        rider: user,
+        isOnline: user['isOnline'] as bool? ?? true,
+      );
+
+      await fetchDashboard();
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(e),
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to create rider account: $e',
+      );
+      return false;
+    }
+  }
+
   Future<void> fetchDashboard() async {
     try {
       final response = await _client.dio.get('/rider/dashboard');
