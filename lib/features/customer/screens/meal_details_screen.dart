@@ -36,7 +36,7 @@ class MealDetailsScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             Text(meal.name, style: Theme.of(context).textTheme.headlineMedium),
             Text(
-              '\$${meal.price.toStringAsFixed(2)}',
+              'Rs ${meal.price.toStringAsFixed(2)}',
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(color: const Color(0xFFFF7A00)),

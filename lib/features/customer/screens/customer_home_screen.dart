@@ -136,7 +136,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                 subtitle: Text(
                   '${meal.cookName ?? 'Local cook'}  ·  ${meal.rating ?? '-'} ★',
                 ),
-                trailing: Text('\$${meal.price.toStringAsFixed(2)}'),
+                trailing: Text('Rs ${meal.price.toStringAsFixed(2)}'),
                 onTap: () => Navigator.pushNamed(
                   context,
                   AppRoutes.mealDetails,

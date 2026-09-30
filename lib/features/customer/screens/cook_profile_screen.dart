@@ -41,7 +41,7 @@ class CookProfileScreen extends StatelessWidget {
               ...meals.map(
                 (meal) => ListTile(
                   title: Text(meal['name'] as String),
-                  trailing: Text('\$${meal['price']}'),
+                  trailing: Text('Rs ${meal['price']}'),
                 ),
               ),
             ],

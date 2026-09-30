@@ -79,7 +79,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 title: Text(item.meal.name),
                 subtitle: Text('Qty ${item.quantity}'),
                 trailing: Text(
-                  '\$${(item.meal.price * item.quantity).toStringAsFixed(2)}',
+                  'Rs ${(item.meal.price * item.quantity).toStringAsFixed(2)}',
                 ),
               ),
             ),
@@ -87,7 +87,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ListTile(
               title: const Text('Total'),
               trailing: Text(
-                '\$${value.subtotal.toStringAsFixed(2)}',
+                'Rs ${value.subtotal.toStringAsFixed(2)}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),

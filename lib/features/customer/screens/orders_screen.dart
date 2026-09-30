@@ -22,7 +22,7 @@ class OrdersScreen extends ConsumerWidget {
                           'Order #${order.id.substring(0, order.id.length > 8 ? 8 : order.id.length)}',
                         ),
                         subtitle: Text(order.status),
-                        trailing: Text('\$${order.total.toStringAsFixed(2)}'),
+                        trailing: Text('Rs ${order.total.toStringAsFixed(2)}'),
                         onTap: () => Navigator.pushNamed(
                           context,
                           AppRoutes.tracking,

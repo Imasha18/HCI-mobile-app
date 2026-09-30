@@ -23,7 +23,7 @@ class CartScreen extends ConsumerWidget {
                             (item) => ListTile(
                               title: Text(item.meal.name),
                               subtitle: Text(
-                                '\$${item.meal.price.toStringAsFixed(2)}',
+                                'Rs ${item.meal.price.toStringAsFixed(2)}',
                               ),
                               leading: IconButton(
                                 onPressed: () => ref
@@ -69,7 +69,7 @@ class CartScreen extends ConsumerWidget {
                           children: [
                             const Text('Subtotal'),
                             Text(
-                              '\$${value.subtotal.toStringAsFixed(2)}',
+                              'Rs ${value.subtotal.toStringAsFixed(2)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),

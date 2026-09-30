@@ -88,7 +88,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           ],
         ),
         const SizedBox(height: 28),
-        Text('Amount: \$${widget.amount.toStringAsFixed(2)}'),
+        Text('Amount: Rs ${widget.amount.toStringAsFixed(2)}'),
         const SizedBox(height: 20),
         FilledButton(
           onPressed: _loading ? null : _pay,
