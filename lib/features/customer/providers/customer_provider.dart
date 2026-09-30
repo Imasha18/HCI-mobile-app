@@ -77,4 +77,39 @@ class CustomerNotifier extends Notifier<CustomerState> {
       return false;
     }
   }
+
+  Future<bool> register(String name, String email, String password) async {
+    if (name.trim().length < 2 ||
+        email.trim().isEmpty ||
+        password.trim().length < 6) {
+      state = const CustomerState(
+        error:
+            'Enter a name, valid email, and password of at least 6 characters.',
+      );
+      return false;
+    }
+    state = const CustomerState(isLoading: true);
+    try {
+      final response = await ApiClient().dio.post(
+        '/auth/register',
+        data: {
+          'name': name.trim(),
+          'email': email.trim(),
+          'password': password,
+        },
+      );
+      final payload = response.data['data'] as Map<String, dynamic>;
+      final user = payload['user'] as Map<String, dynamic>;
+      await _storage.write(
+        key: 'auth_token',
+        value: payload['token'] as String,
+      );
+      state = CustomerState(user: user);
+      return true;
+    } on DioException catch (error) {
+      await _storage.delete(key: 'auth_token');
+      state = CustomerState(error: ApiClient.messageFrom(error));
+      return false;
+    }
+  }
 }

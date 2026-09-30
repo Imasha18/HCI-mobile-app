@@ -18,3 +18,12 @@ test('login rejects missing credentials', async () => {
     'Password must be at least 6 characters',
   ]);
 });
+
+test('registration rejects missing name and does not create a session', async () => {
+  const response = await request(app)
+    .post('/api/auth/register')
+    .send({ email: 'missing-name@example.com', password: 'HomeBite123!' });
+
+  expect(response.statusCode).toBe(400);
+  expect(response.body.details).toContain('Name is required when registering');
+});
