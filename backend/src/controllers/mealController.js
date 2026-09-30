@@ -19,7 +19,9 @@ function parseArrayInput(input) {
 
 async function listMeals(req, res) {
   const filter = { available: true };
-  if (req.query.category) filter.category = req.query.category;
+  if (req.query.category && req.query.category.toLowerCase() !== 'all') {
+    filter.category = req.query.category;
+  }
   if (req.query.minPrice || req.query.maxPrice) {
     filter.price = {};
     if (req.query.minPrice) filter.price.$gte = Number(req.query.minPrice);

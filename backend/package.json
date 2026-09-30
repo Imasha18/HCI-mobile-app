@@ -7,8 +7,11 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "seed": "node src/scripts/seedAll.js",
+    "seed:all": "node src/scripts/seedAll.js",
     "seed:customer": "node src/scripts/seedCustomerData.js",
     "seed:cook": "node src/scripts/seedCookData.js",
+    "seed:rider": "node src/scripts/seedRiderData.js",
     "test": "jest --runInBand"
   },
   "dependencies": {
