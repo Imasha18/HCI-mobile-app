@@ -25,7 +25,8 @@ class CustomerHomeScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.notifications),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
         ],
@@ -99,6 +100,7 @@ class CustomerHomeScreen extends ConsumerWidget {
         onDestinationSelected: (index) {
           if (index == 1) Navigator.pushNamed(context, AppRoutes.search);
           if (index == 2) Navigator.pushNamed(context, AppRoutes.cart);
+          if (index == 3) Navigator.pushNamed(context, AppRoutes.profile);
         },
         destinations: const [
           NavigationDestination(
