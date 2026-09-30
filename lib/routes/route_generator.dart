@@ -33,6 +33,19 @@ import '../features/cook/screens/preparing_order_screen.dart';
 import '../features/cook/screens/cook_earnings_screen.dart';
 import '../features/cook/screens/cook_profile_screen.dart' as cook;
 import '../features/cook/screens/cook_notifications_screen.dart';
+import '../features/rider/screens/rider_login_screen.dart';
+import '../features/rider/screens/rider_dashboard_screen.dart';
+import '../features/rider/screens/delivery_requests_screen.dart';
+import '../features/rider/screens/delivery_request_details_screen.dart';
+import '../features/rider/screens/accept_delivery_screen.dart';
+import '../features/rider/screens/pickup_screen.dart';
+import '../features/rider/screens/navigation_screen.dart';
+import '../features/rider/screens/in_transit_screen.dart';
+import '../features/rider/screens/delivery_confirmation_screen.dart';
+import '../features/rider/screens/rider_earnings_screen.dart';
+import '../features/rider/screens/delivery_history_screen.dart';
+import '../features/rider/screens/rider_profile_screen.dart';
+import '../features/rider/screens/rider_notifications_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -43,6 +56,41 @@ class RouteGenerator {
       AppRoutes.customerLogin => const CustomerLoginScreen(),
       AppRoutes.cookLogin => const CookLoginScreen(),
       AppRoutes.cookDashboard => const CookDashboardScreen(),
+      AppRoutes.riderLogin => const RiderLoginScreen(),
+      AppRoutes.riderDashboard => const RiderDashboardScreen(),
+      AppRoutes.deliveryRequests => const DeliveryRequestsScreen(),
+      AppRoutes.deliveryRequestDetails => DeliveryRequestDetailsScreen(
+          deliveryId: settings.arguments as String? ?? '',
+        ),
+      AppRoutes.acceptDelivery => AcceptDeliveryScreen(
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
+        ),
+      AppRoutes.riderPickup => PickupScreen(
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
+        ),
+      AppRoutes.riderNavigation => NavigationScreen(
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
+        ),
+      AppRoutes.riderInTransit => InTransitScreen(
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
+        ),
+      AppRoutes.riderDeliveryConfirmation => DeliveryConfirmationScreen(
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
+        ),
+      AppRoutes.riderEarnings => const RiderEarningsScreen(),
+      AppRoutes.deliveryHistory => const DeliveryHistoryScreen(),
+      AppRoutes.riderProfile => const RiderProfileScreen(),
+      AppRoutes.riderNotifications => const RiderNotificationsScreen(),
       AppRoutes.manageMenu => const ManageMenuScreen(),
       AppRoutes.addMeal => const AddMealScreen(),
       AppRoutes.editMeal => EditMealScreen(

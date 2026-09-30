@@ -58,7 +58,45 @@ class TrackingScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 16),
+              if (snapshot.data?.riderName != null) ...[
+                Card(
+                  elevation: 0,
+                  color: const Color(0xFFE8FBEF),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Color(0xFF20C957), width: 1.2),
+                  ),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFF20C957),
+                      child: Icon(Icons.delivery_dining, color: Colors.white),
+                    ),
+                    title: Text(
+                      snapshot.data!.riderName!,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    subtitle: Text(snapshot.data?.riderPhone ?? 'HomeBite Delivery Rider'),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF20C957),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.phone, size: 14, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text('Call', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 12),
               ...steps.asMap().entries.map((entry) {
                 final isComplete = entry.key <= completed;
                 return ListTile(

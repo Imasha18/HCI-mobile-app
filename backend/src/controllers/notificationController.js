@@ -35,6 +35,37 @@ async function listNotifications(req, res) {
     notifications = await Notification.insertMany(defaults);
   }
 
+  // If user is rider and notifications are empty, seed default rider alerts
+  if (!notifications.length && req.user.role === 'rider') {
+    const defaults = [
+      {
+        user: req.user.id,
+        title: 'New delivery request',
+        body: "Delivery available from Amma's Spice Kitchen (3.8 km away). Tap to view.",
+        read: false,
+      },
+      {
+        user: req.user.id,
+        title: 'Delivery accepted',
+        body: 'You accepted delivery for Order #HB-9142. Please proceed to kitchen.',
+        read: false,
+      },
+      {
+        user: req.user.id,
+        title: 'Customer location updated',
+        body: 'Nimal Jayasuriya updated drop notes: "Leave at security guard desk".',
+        read: true,
+      },
+      {
+        user: req.user.id,
+        title: 'Delivery completed',
+        body: 'Order #HB-8492 completed! Rs. 450.00 added to your daily earnings.',
+        read: true,
+      },
+    ];
+    notifications = await Notification.insertMany(defaults);
+  }
+
   return sendSuccess(res, notifications);
 }
 
@@ -53,4 +84,10 @@ async function markAllAsRead(req, res) {
   return sendSuccess(res, {}, 'All notifications marked as read');
 }
 
-module.exports = { listNotifications, markNotificationAsRead, markAllAsRead };
+async function deleteNotification(req, res) {
+  const notification = await Notification.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+  if (!notification) return res.status(404).json({ success: false, message: 'Notification not found' });
+  return sendSuccess(res, {}, 'Notification deleted successfully');
+}
+
+module.exports = { listNotifications, markNotificationAsRead, markAllAsRead, deleteNotification };
