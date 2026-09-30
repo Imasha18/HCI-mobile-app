@@ -314,12 +314,7 @@ class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('New rider accounts are instantly approved with demo account.'),
-                                backgroundColor: RiderTheme.primaryDark,
-                              ),
-                            );
+                            Navigator.pushNamed(context, AppRoutes.riderRegister);
                           },
                           child: const Text(
                             'Register',
