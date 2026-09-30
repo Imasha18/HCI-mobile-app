@@ -40,10 +40,16 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
       final account = await GoogleSignIn().signIn();
       final idToken = (await account?.authentication)?.idToken;
       if (idToken == null) return;
-      final success = await ref.read(customerProvider.notifier).googleLogin(idToken);
-      if (success && mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
+      final success = await ref
+          .read(customerProvider.notifier)
+          .googleLogin(idToken);
+      if (success && mounted)
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in failed: $error')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign-in failed: $error')),
+        );
     }
   }
 
