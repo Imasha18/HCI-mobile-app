@@ -8,6 +8,10 @@ const userSchema = new mongoose.Schema({
   phone: String,
   address: String,
   profileImage: String,
+  emailVerified: { type: Boolean, default: false },
+  verificationCodeHash: { type: String, select: false },
+  verificationExpiresAt: { type: Date, select: false },
+  googleId: { type: String, unique: true, sparse: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

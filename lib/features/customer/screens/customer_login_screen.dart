@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../config/app_routes.dart';
 import '../providers/customer_provider.dart';
@@ -31,6 +32,18 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
         .login(_emailController.text, _passwordController.text);
     if (success && mounted) {
       Navigator.pushReplacementNamed(context, AppRoutes.home);
+    }
+  }
+
+  Future<void> _googleLogin() async {
+    try {
+      final account = await GoogleSignIn().signIn();
+      final idToken = (await account?.authentication)?.idToken;
+      if (idToken == null) return;
+      final success = await ref.read(customerProvider.notifier).googleLogin(idToken);
+      if (success && mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in failed: $error')));
     }
   }
 
@@ -116,7 +129,7 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: state.isLoading ? null : _googleLogin,
                 icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
                 label: const Text('Continue with Google'),
               ),

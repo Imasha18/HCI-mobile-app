@@ -15,4 +15,5 @@ class AppRoutes {
   static const review = '/review';
   static const profile = '/profile';
   static const notifications = '/notifications';
+  static const verifyEmail = '/verify-email';
 }

@@ -90,7 +90,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
     }
     state = const CustomerState(isLoading: true);
     try {
-      final response = await ApiClient().dio.post(
+      await ApiClient().dio.post(
         '/auth/register',
         data: {
           'name': name.trim(),
@@ -98,16 +98,49 @@ class CustomerNotifier extends Notifier<CustomerState> {
           'password': password,
         },
       );
+      state = CustomerState(user: {'email': email.trim()});
+      return true;
+    } on DioException catch (error) {
+      await _storage.delete(key: 'auth_token');
+      state = CustomerState(error: ApiClient.messageFrom(error));
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmail(String email, String code) async {
+    state = const CustomerState(isLoading: true);
+    try {
+      final response = await ApiClient().dio.post(
+        '/auth/verify-email',
+        data: {'email': email.trim(), 'code': code.trim()},
+      );
       final payload = response.data['data'] as Map<String, dynamic>;
-      final user = payload['user'] as Map<String, dynamic>;
       await _storage.write(
         key: 'auth_token',
         value: payload['token'] as String,
       );
-      state = CustomerState(user: user);
+      state = CustomerState(user: payload['user'] as Map<String, dynamic>);
       return true;
     } on DioException catch (error) {
-      await _storage.delete(key: 'auth_token');
+      state = CustomerState(error: ApiClient.messageFrom(error));
+      return false;
+    }
+  }
+
+  Future<bool> googleLogin(String idToken) async {
+    try {
+      final response = await ApiClient().dio.post(
+        '/auth/google',
+        data: {'idToken': idToken},
+      );
+      final payload = response.data['data'] as Map<String, dynamic>;
+      await _storage.write(
+        key: 'auth_token',
+        value: payload['token'] as String,
+      );
+      state = CustomerState(user: payload['user'] as Map<String, dynamic>);
+      return true;
+    } on DioException catch (error) {
       state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }

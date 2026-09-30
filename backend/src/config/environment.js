@@ -9,6 +9,10 @@ const environment = {
   mongoDnsServers: (process.env.MONGO_DNS_SERVERS || '').split(',').map((server) => server.trim()).filter(Boolean),
   jwtSecret: process.env.JWT_SECRET || 'development-only-secret',
   clientOrigin: process.env.CLIENT_ORIGIN || '*',
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  gmailUser: process.env.GMAIL_USER || '',
+  gmailAppPassword: process.env.GMAIL_APP_PASSWORD || '',
+  verificationUrlMinutes: Number(process.env.VERIFICATION_URL_MINUTES || 15),
 };
 
 module.exports = environment;

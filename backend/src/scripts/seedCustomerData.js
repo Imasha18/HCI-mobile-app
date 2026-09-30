@@ -19,12 +19,12 @@ async function seed() {
 
   await User.findOneAndUpdate(
     { email: customerEmail },
-    { name: 'HomeBite Customer', email: customerEmail, password: customerPasswordHash, role: 'customer', address: 'Brooklyn Heights' },
+    { name: 'HomeBite Customer', email: customerEmail, password: customerPasswordHash, role: 'customer', emailVerified: true, address: 'Brooklyn Heights' },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
   const cook = await User.findOneAndUpdate(
     { email: cookEmail },
-    { name: 'Mara Kitchen', email: cookEmail, password: cookPasswordHash, role: 'cook', address: 'Brooklyn Heights' },
+    { name: 'Mara Kitchen', email: cookEmail, password: cookPasswordHash, role: 'cook', emailVerified: true, address: 'Brooklyn Heights' },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 

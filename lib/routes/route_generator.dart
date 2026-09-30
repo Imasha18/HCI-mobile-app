@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/app_routes.dart';
 import '../features/customer/screens/customer_login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
+import '../features/auth/screens/verify_email_screen.dart';
 import '../features/customer/screens/customer_home_screen.dart';
 import '../features/customer/screens/search_screen.dart';
 import '../features/customer/screens/meal_details_screen.dart';
@@ -22,6 +23,9 @@ class RouteGenerator {
     final Widget page = switch (settings.name) {
       AppRoutes.login => const CustomerLoginScreen(),
       AppRoutes.register => const RegisterScreen(),
+      AppRoutes.verifyEmail => VerifyEmailScreen(
+        email: settings.arguments as String,
+      ),
       AppRoutes.home => const CustomerHomeScreen(),
       AppRoutes.cart => const CartScreen(),
       AppRoutes.search => const SearchScreen(),

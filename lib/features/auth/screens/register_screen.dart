@@ -31,7 +31,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         .read(customerProvider.notifier)
         .register(_name.text, _email.text, _password.text);
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
+      Navigator.pushNamed(
+        context,
+        AppRoutes.verifyEmail,
+        arguments: _email.text.trim(),
+      );
     }
   }
 
