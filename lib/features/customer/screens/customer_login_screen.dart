@@ -160,6 +160,15 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                     Navigator.pushNamed(context, AppRoutes.register),
                 child: const Text('New to HomeBite? Create an account'),
               ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.cookLogin),
+                  icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
+                  label: const Text('Are you a Home Cook? Cook Portal'),
+                ),
+              ),
             ],
           ),
         ),
