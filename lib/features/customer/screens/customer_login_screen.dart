@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../config/app_routes.dart';
 import '../../../config/api_config.dart';
+import '../../../config/constants.dart';
 import '../providers/customer_provider.dart';
 
 class CustomerLoginScreen extends ConsumerStatefulWidget {
@@ -70,17 +71,39 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
             children: [
-              Container(
-                height: 88,
-                width: 88,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF7A00),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: const Icon(
-                  Icons.restaurant_rounded,
-                  color: Colors.white,
-                  size: 44,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  height: 88,
+                  width: 88,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    AppAssets.logo,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF7A00),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.restaurant_rounded,
+                        color: Colors.white,
+                        size: 44,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 28),
@@ -159,6 +182,24 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                 onPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.register),
                 child: const Text('New to HomeBite? Create an account'),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.roleSelection),
+                  icon: const Icon(Icons.people_outline_rounded, size: 18),
+                  label: const Text('How will you join us? Select Role'),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.cookLogin),
+                  icon: const Icon(Icons.restaurant_menu_rounded, size: 18),
+                  label: const Text('Are you a Home Cook? Cook Portal'),
+                ),
               ),
             ],
           ),

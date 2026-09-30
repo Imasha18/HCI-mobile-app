@@ -1,11 +1,12 @@
 const express = require('express');
-const { register, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me } = require('../controllers/authController');
+const { register, registerCook, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me } = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateBody } = require('../middleware/validateMiddleware');
 const { validateAuth, validateRegistration, validatePasswordReset } = require('../validators/authValidator');
 
 const router = express.Router();
 router.post('/register', validateBody(validateRegistration), register);
+router.post('/register-cook', registerCook);
 router.post('/login', validateBody(validateAuth), login);
 router.post('/verify-email', verifyEmail);
 router.post('/google', googleLogin);
