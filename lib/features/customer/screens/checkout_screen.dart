@@ -12,7 +12,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  final _address = TextEditingController(text: 'Brooklyn Heights');
+  final _address = TextEditingController(text: 'Colombo 03, Sri Lanka');
   bool _loading = false;
   @override
   void dispose() {

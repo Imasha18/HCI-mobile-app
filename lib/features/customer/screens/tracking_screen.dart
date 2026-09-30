@@ -14,9 +14,10 @@ class TrackingScreen extends ConsumerWidget {
       body: FutureBuilder(
         future: ref.read(orderProvider.notifier).getOrder(orderId),
         builder: (context, snapshot) {
-          final status = snapshot.data?.status ?? 'pending';
+          final status = (snapshot.data?.status ?? 'Order Received').trim();
+          final sLower = status.toLowerCase();
           final steps = [
-            'Order Placed',
+            'Order Received',
             'Cook Accepted',
             'Preparing',
             'Ready for Pickup',
@@ -24,10 +25,22 @@ class TrackingScreen extends ConsumerWidget {
             'Out for Delivery',
             'Delivered',
           ];
-          final active = steps.indexWhere(
-            (step) => step.toLowerCase().contains(status.toLowerCase()),
-          );
-          final completed = active < 0 ? 0 : active;
+          int completed = 0;
+          if (sLower.contains('delivered') || sLower.contains('completed')) {
+            completed = 6;
+          } else if (sLower.contains('out') || sLower.contains('delivery')) {
+            completed = 5;
+          } else if (sLower.contains('rider')) {
+            completed = 4;
+          } else if (sLower.contains('ready') || sLower.contains('pickup')) {
+            completed = 3;
+          } else if (sLower.contains('preparing')) {
+            completed = 2;
+          } else if (sLower.contains('accepted')) {
+            completed = 1;
+          } else {
+            completed = 0;
+          }
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [

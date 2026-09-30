@@ -9,9 +9,29 @@ const mealSchema = new mongoose.Schema({
   imageUrl: String,
   ingredients: [String],
   dietaryInformation: [String],
-  prepTimeMinutes: Number,
-  rating: { type: Number, min: 0, max: 5, default: 0 },
+  prepTimeMinutes: { type: Number, default: 25 },
+  rating: { type: Number, min: 0, max: 5, default: 4.8 },
   available: { type: Boolean, default: true },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+});
+
+mealSchema.virtual('cookId')
+  .get(function() { return this.cook; })
+  .set(function(v) { this.cook = v; });
+
+mealSchema.virtual('image')
+  .get(function() { return this.imageUrl; })
+  .set(function(v) { this.imageUrl = v; });
+
+mealSchema.virtual('availability')
+  .get(function() { return this.available; })
+  .set(function(v) { this.available = v; });
+
+mealSchema.virtual('cookingTime')
+  .get(function() { return this.prepTimeMinutes; })
+  .set(function(v) { this.prepTimeMinutes = v; });
 
 module.exports = mongoose.model('Meal', mealSchema);

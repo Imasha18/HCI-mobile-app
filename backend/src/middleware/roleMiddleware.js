@@ -7,4 +7,4 @@ function authorizeRoles(...allowedRoles) {
   };
 }
 
-module.exports = { authorizeRoles };
+module.exports = { authorizeRoles, authorize: authorizeRoles };
