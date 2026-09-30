@@ -43,17 +43,17 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
     final statistics = dashboard?['statistics'] as Map<String, dynamic>?;
     final currentDelivery = dashboard?['currentDelivery'] as Map<String, dynamic>?;
 
-    final riderName = riderInfo?['name'] as String? ?? 'Kamal Perera';
-    final profileImage = riderInfo?['profileImage'] as String?;
-    final vehicle = riderInfo?['vehicleDetails'] as Map<String, dynamic>?;
-    final vehicleStr = vehicle != null
-        ? '${vehicle['model'] ?? 'Motorbike'} · ${vehicle['plateNumber'] ?? 'WP BZ-4892'}'
-        : 'Motorbike · WP BZ-4892';
+    final riderName = riderInfo?['name'] as String? ?? state.rider?['name'] as String? ?? 'Delivery Rider';
+    final profileImage = riderInfo?['profileImage'] as String? ?? state.rider?['profileImage'] as String?;
+    final vehicle = (riderInfo?['vehicleDetails'] as Map<String, dynamic>?) ?? (state.rider?['vehicleDetails'] as Map<String, dynamic>?);
+    final vehicleModel = vehicle?['model'] ?? vehicle?['type'] ?? 'Motorbike';
+    final plateNumber = vehicle?['plateNumber'] as String? ?? '';
+    final vehicleStr = plateNumber.isNotEmpty ? '$vehicleModel · $plateNumber' : vehicleModel;
 
-    final todayDeliveries = (statistics?['todayDeliveries'] ?? 3).toString();
-    final todayEarningsNum = (statistics?['todayEarnings'] as num?)?.toDouble() ?? 2450.0;
-    final rating = (statistics?['rating'] ?? 4.9).toString();
-    final distanceTravelled = '${statistics?['distanceTravelled'] ?? 16.8} km';
+    final todayDeliveries = ((statistics?['todayDeliveries'] as num?)?.toInt() ?? 0).toString();
+    final todayEarningsNum = (statistics?['todayEarnings'] as num?)?.toDouble() ?? 0.0;
+    final rating = (statistics?['rating'] ?? riderInfo?['rating'] ?? state.rider?['rating'] ?? 5.0).toString();
+    final distanceTravelled = '${((statistics?['distanceTravelled'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(1)} km';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FBF9),

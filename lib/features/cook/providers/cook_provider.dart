@@ -93,6 +93,60 @@ class CookNotifier extends StateNotifier<CookState> {
     }
   }
 
+  Future<bool> register({
+    required String name,
+    required String email,
+    required String password,
+    String? kitchenName,
+    String? phone,
+    String? address,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.post(
+        '/auth/register-cook',
+        data: {
+          'name': name.trim(),
+          'email': email.trim(),
+          'password': password,
+          'kitchenName': kitchenName?.trim().isNotEmpty == true
+              ? kitchenName!.trim()
+              : '$name\'s Kitchen',
+          'phone': phone?.trim() ?? '',
+          'address': address?.trim() ?? '',
+          'role': 'cook',
+        },
+      );
+
+      final data = response.data['data'] as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = data['user'] as Map<String, dynamic>;
+
+      await _storage.write(key: 'auth_token', value: token);
+
+      state = state.copyWith(
+        isLoading: false,
+        cook: user,
+        isOnline: user['isOnline'] as bool? ?? true,
+      );
+
+      await fetchDashboard();
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(e),
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to create cook account: $e',
+      );
+      return false;
+    }
+  }
+
   Future<void> fetchDashboard() async {
     try {
       final response = await _client.dio.get('/cooks/dashboard');
