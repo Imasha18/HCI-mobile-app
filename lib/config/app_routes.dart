@@ -18,4 +18,18 @@ class AppRoutes {
   static const verifyEmail = '/verify-email';
   static const forgotPassword = '/forgot-password';
   static const resetPassword = '/reset-password';
+
+  // Cook Module Routes
+  static const cookLogin = '/cook-login';
+  static const cookDashboard = '/cook-dashboard';
+  static const manageMenu = '/cook-manage-menu';
+  static const addMeal = '/cook-add-meal';
+  static const editMeal = '/cook-edit-meal';
+  static const cookOrders = '/cook-orders';
+  static const cookOrderDetails = '/cook-order-details';
+  static const updateOrderStatus = '/cook-update-status';
+  static const preparingOrder = '/cook-preparing-order';
+  static const cookEarnings = '/cook-earnings';
+  static const cookProfileSettings = '/cook-profile-settings';
+  static const cookNotifications = '/cook-notifications';
 }

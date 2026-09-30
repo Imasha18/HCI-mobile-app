@@ -19,11 +19,15 @@ import '../features/customer/screens/orders_screen.dart';
 import '../features/customer/screens/review_screen.dart';
 import '../features/customer/screens/customer_profile_screen.dart';
 import '../features/customer/screens/notification_screen.dart';
+import '../features/cook/screens/cook_login_screen.dart';
+import '../features/cook/screens/cook_dashboard_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
     final Widget page = switch (settings.name) {
       AppRoutes.login => const CustomerLoginScreen(),
+      AppRoutes.cookLogin => const CookLoginScreen(),
+      AppRoutes.cookDashboard => const CookDashboardScreen(),
       AppRoutes.register => const RegisterScreen(),
       AppRoutes.verifyEmail => VerifyEmailScreen(
         email: settings.arguments as String,

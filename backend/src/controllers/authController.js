@@ -8,7 +8,20 @@ const environment = require('../config/environment');
 const { sendVerificationCode, sendPasswordResetCode } = require('../services/emailService');
 
 function publicUser(user) {
-  return { id: user.id, name: user.name, email: user.email, role: user.role, emailVerified: user.emailVerified };
+  return {
+    id: user.id || user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: user.phone || '',
+    address: user.address || '',
+    profileImage: user.profileImage || '',
+    isVerified: user.isVerified ?? true,
+    rating: user.rating || 4.8,
+    isOnline: user.isOnline ?? true,
+    kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
+    emailVerified: user.emailVerified,
+  };
 }
 
 function createVerificationCode() {
@@ -16,23 +29,66 @@ function createVerificationCode() {
 }
 
 async function register(req, res) {
-  const { name, email, password } = req.body;
-  const existing = await User.findOne({ email });
+  const { name, email, password, role } = req.body;
+  const existing = await User.findOne({ email: email.trim().toLowerCase() });
   if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
   const hashedPassword = await bcrypt.hash(password, 12);
+  if (role === 'cook') {
+    const user = await User.create({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password: hashedPassword,
+      role: 'cook',
+      phone: req.body.phone?.trim() || '',
+      address: req.body.address?.trim() || '',
+      kitchenName: req.body.kitchenName?.trim() || `${name.trim()}'s Kitchen`,
+      isVerified: true,
+      emailVerified: true,
+    });
+    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook account created', 201);
+  }
   const code = createVerificationCode();
   const user = await User.create({ name: name.trim(), email: email.trim().toLowerCase(), password: hashedPassword, role: 'customer', emailVerified: false, verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'), verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000 });
   await sendVerificationCode(user.email, code);
   return sendSuccess(res, { user: publicUser(user), emailVerificationRequired: true }, 'Verification code sent', 201);
 }
 
+async function registerCook(req, res) {
+  const { name, email, password, phone, address, kitchenName } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const user = await User.create({
+    name: name.trim(),
+    email: normalizedEmail,
+    password: hashedPassword,
+    role: 'cook',
+    phone: phone?.trim() || '',
+    address: address?.trim() || '',
+    kitchenName: kitchenName?.trim() || `${name.trim()}'s Kitchen`,
+    isVerified: true,
+    emailVerified: true,
+  });
+  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook registered successfully', 201);
+}
+
 async function login(req, res) {
   const email = req.body.email.trim().toLowerCase();
-  const { password } = req.body;
+  const { password, role } = req.body;
   const user = await User.findOne({ email }).select('+password');
-  if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Invalid email or password' });
-  if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
-  if (!user.emailVerified) return res.status(403).json({ success: false, message: 'Please verify your email before signing in' });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ success: false, message: 'Invalid email or password' });
+  }
+  if (role && user.role !== role) {
+    return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
+  }
+  if (user.role === 'customer' && !user.emailVerified) {
+    return res.status(403).json({ success: false, message: 'Please verify your email before signing in' });
+  }
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in');
 }
 
@@ -90,4 +146,4 @@ async function me(req, res) {
   return sendSuccess(res, user);
 }
 
-module.exports = { register, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me };
+module.exports = { register, registerCook, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me };
