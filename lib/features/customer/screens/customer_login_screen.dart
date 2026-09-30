@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../config/app_routes.dart';
+import '../../../config/api_config.dart';
 import '../providers/customer_provider.dart';
 
 class CustomerLoginScreen extends ConsumerStatefulWidget {
@@ -37,7 +38,9 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
 
   Future<void> _googleLogin() async {
     try {
-      final account = await GoogleSignIn().signIn();
+      final account = await GoogleSignIn(
+        serverClientId: ApiConfig.googleClientId,
+      ).signIn();
       final idToken = (await account?.authentication)?.idToken;
       if (idToken == null) {
         return;

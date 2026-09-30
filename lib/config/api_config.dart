@@ -1,6 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
+  static const googleClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+    defaultValue:
+        '465451848829-5keopsu5c31fn3rc8t672sdqev28dgq4.apps.googleusercontent.com',
+  );
+
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
