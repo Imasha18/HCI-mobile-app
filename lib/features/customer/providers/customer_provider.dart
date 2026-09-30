@@ -145,4 +145,49 @@ class CustomerNotifier extends Notifier<CustomerState> {
       return false;
     }
   }
+
+  Future<bool> requestPasswordReset(String email) async {
+    if (!email.contains('@')) {
+      state = const CustomerState(error: 'Enter a valid email address.');
+      return false;
+    }
+    state = const CustomerState(isLoading: true);
+    try {
+      await ApiClient().dio.post(
+        '/auth/forgot-password',
+        data: {'email': email.trim()},
+      );
+      state = CustomerState(user: {'email': email.trim()});
+      return true;
+    } on DioException catch (error) {
+      state = CustomerState(error: ApiClient.messageFrom(error));
+      return false;
+    }
+  }
+
+  Future<bool> resetPassword(String email, String code, String password) async {
+    if (code.trim().length != 6 || password.trim().length < 6) {
+      state = const CustomerState(
+        error:
+            'Enter the 6-digit code and a password of at least 6 characters.',
+      );
+      return false;
+    }
+    state = const CustomerState(isLoading: true);
+    try {
+      await ApiClient().dio.post(
+        '/auth/reset-password',
+        data: {
+          'email': email.trim(),
+          'code': code.trim(),
+          'password': password,
+        },
+      );
+      state = const CustomerState();
+      return true;
+    } on DioException catch (error) {
+      state = CustomerState(error: ApiClient.messageFrom(error));
+      return false;
+    }
+  }
 }

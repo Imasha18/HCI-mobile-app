@@ -24,4 +24,19 @@ async function sendVerificationCode(email, code) {
   });
 }
 
-module.exports = { sendVerificationCode };
+async function sendPasswordResetCode(email, code) {
+  const transporter = createTransporter();
+  if (!transporter) {
+    if (environment.nodeEnv === 'production') throw new Error('Gmail password recovery is not configured');
+    console.log(`Password reset code for ${email}: ${code}`);
+    return;
+  }
+  await transporter.sendMail({
+    from: environment.gmailUser,
+    to: email,
+    subject: 'HomeBite password reset code',
+    text: `Your HomeBite password reset code is ${code}. It expires in ${environment.verificationUrlMinutes} minutes.`,
+  });
+}
+
+module.exports = { sendVerificationCode, sendPasswordResetCode };

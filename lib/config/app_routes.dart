@@ -16,4 +16,6 @@ class AppRoutes {
   static const profile = '/profile';
   static const notifications = '/notifications';
   static const verifyEmail = '/verify-email';
+  static const forgotPassword = '/forgot-password';
+  static const resetPassword = '/reset-password';
 }

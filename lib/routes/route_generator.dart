@@ -4,6 +4,8 @@ import '../config/app_routes.dart';
 import '../features/customer/screens/customer_login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/verify_email_screen.dart';
+import '../features/auth/screens/forgot_password_screen.dart';
+import '../features/auth/screens/reset_password_screen.dart';
 import '../features/customer/screens/customer_home_screen.dart';
 import '../features/customer/screens/search_screen.dart';
 import '../features/customer/screens/meal_details_screen.dart';
@@ -25,6 +27,10 @@ class RouteGenerator {
       AppRoutes.register => const RegisterScreen(),
       AppRoutes.verifyEmail => VerifyEmailScreen(
         email: settings.arguments as String,
+      ),
+      AppRoutes.forgotPassword => const ForgotPasswordScreen(),
+      AppRoutes.resetPassword => ResetPasswordScreen(
+        email: (settings.arguments as Map<String, dynamic>)['email'] as String,
       ),
       AppRoutes.home => const CustomerHomeScreen(),
       AppRoutes.cart => const CartScreen(),

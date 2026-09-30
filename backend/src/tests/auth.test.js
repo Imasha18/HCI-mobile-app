@@ -27,3 +27,11 @@ test('registration rejects missing name and does not create a session', async ()
   expect(response.statusCode).toBe(400);
   expect(response.body.details).toContain('Name is required when registering');
 });
+
+test('forgot password routes reject missing credentials', async () => {
+  const response = await request(app)
+    .post('/api/auth/reset-password')
+    .send({ email: '', code: '', password: '' });
+
+  expect(response.statusCode).toBe(400);
+});

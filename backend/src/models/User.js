@@ -11,6 +11,8 @@ const userSchema = new mongoose.Schema({
   emailVerified: { type: Boolean, default: false },
   verificationCodeHash: { type: String, select: false },
   verificationExpiresAt: { type: Date, select: false },
+  resetCodeHash: { type: String, select: false },
+  resetExpiresAt: { type: Date, select: false },
   googleId: { type: String, unique: true, sparse: true },
 }, { timestamps: true });
 

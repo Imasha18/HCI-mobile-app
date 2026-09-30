@@ -137,6 +137,14 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                       )
                     : const Text('Login'),
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword),
+                  child: const Text('Forgot password?'),
+                ),
+              ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: state.isLoading ? null : _googleLogin,

@@ -5,7 +5,7 @@ const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { sendSuccess } = require('../utils/apiResponse');
 const environment = require('../config/environment');
-const { sendVerificationCode } = require('../services/emailService');
+const { sendVerificationCode, sendPasswordResetCode } = require('../services/emailService');
 
 function publicUser(user) {
   return { id: user.id, name: user.name, email: user.email, role: user.role, emailVerified: user.emailVerified };
@@ -60,9 +60,34 @@ async function googleLogin(req, res) {
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
 }
 
+async function requestPasswordReset(req, res) {
+  const email = req.body.email.trim().toLowerCase();
+  const user = await User.findOne({ email, role: 'customer' });
+  if (user) {
+    const code = createVerificationCode();
+    user.resetCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+    user.resetExpiresAt = Date.now() + environment.verificationUrlMinutes * 60 * 1000;
+    await user.save();
+    await sendPasswordResetCode(user.email, code);
+  }
+  return sendSuccess(res, { email: user ? email : null }, 'If that email is registered, a reset code was sent');
+}
+
+async function resetPassword(req, res) {
+  const email = req.body.email.trim().toLowerCase();
+  const codeHash = crypto.createHash('sha256').update(req.body.code.trim()).digest('hex');
+  const user = await User.findOne({ email, role: 'customer' }).select('+resetCodeHash +resetExpiresAt');
+  if (!user || user.resetCodeHash !== codeHash || !user.resetExpiresAt || user.resetExpiresAt.getTime() < Date.now()) return res.status(400).json({ success: false, message: 'Invalid or expired password reset code' });
+  user.password = await bcrypt.hash(req.body.password, 12);
+  user.resetCodeHash = undefined;
+  user.resetExpiresAt = undefined;
+  await user.save();
+  return sendSuccess(res, {}, 'Password reset successfully');
+}
+
 async function me(req, res) {
   const user = await User.findById(req.user.id).select('-password');
   return sendSuccess(res, user);
 }
 
-module.exports = { register, login, verifyEmail, googleLogin, me };
+module.exports = { register, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me };
