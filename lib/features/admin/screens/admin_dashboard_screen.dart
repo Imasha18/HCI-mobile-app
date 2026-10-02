@@ -147,7 +147,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         color: AdminTheme.primary,
         onRefresh: () => ref.read(adminProvider.notifier).fetchDashboard(),
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

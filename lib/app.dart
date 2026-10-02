@@ -13,6 +13,10 @@ class DeliveryApp extends StatelessWidget {
       title: 'HomeBite',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      scrollBehavior: const ScrollBehavior().copyWith(
+        overscroll: false,
+        physics: ClampingScrollPhysics(),
+      ),
       initialRoute: AppRoutes.splash,
       onGenerateRoute: RouteGenerator.generate,
     );
