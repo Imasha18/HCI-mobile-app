@@ -26,6 +26,11 @@ import '../features/cook/screens/add_meal_screen.dart';
 import '../features/cook/screens/edit_meal_screen.dart';
 import '../features/cook/screens/cook_orders_screen.dart';
 import '../features/cook/screens/order_details_screen.dart';
+import '../features/cook/screens/update_order_status_screen.dart';
+import '../features/cook/screens/preparing_order_screen.dart';
+import '../features/cook/screens/cook_earnings_screen.dart';
+import '../features/cook/screens/cook_profile_screen.dart' as cook;
+import '../features/cook/screens/cook_notifications_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -42,6 +47,15 @@ class RouteGenerator {
       AppRoutes.cookOrderDetails => OrderDetailsScreen(
           orderId: settings.arguments as String,
         ),
+      AppRoutes.updateOrderStatus => UpdateOrderStatusScreen(
+          order: settings.arguments as Map<String, dynamic>,
+        ),
+      AppRoutes.preparingOrder => PreparingOrderScreen(
+          order: settings.arguments as Map<String, dynamic>,
+        ),
+      AppRoutes.cookEarnings => const CookEarningsScreen(),
+      AppRoutes.cookProfileSettings => const cook.CookProfileScreen(),
+      AppRoutes.cookNotifications => const CookNotificationsScreen(),
       AppRoutes.register => const RegisterScreen(),
       AppRoutes.verifyEmail => VerifyEmailScreen(
         email: settings.arguments as String,
