@@ -62,7 +62,9 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
           color: RiderTheme.primaryGreen,
           onRefresh: () => ref.read(riderProvider.notifier).fetchDashboard(),
           child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
