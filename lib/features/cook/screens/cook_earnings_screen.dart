@@ -69,7 +69,7 @@ class _CookEarningsScreenState extends ConsumerState<CookEarningsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'TOTAL KITCHEN BALANCE',
+                      'TOTAL KITCHEN BALANCE (LKR)',
                       style: TextStyle(
                         color: Colors.white70,
                         fontWeight: FontWeight.w700,

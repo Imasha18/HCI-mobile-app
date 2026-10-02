@@ -55,14 +55,14 @@ class _CookDashboardScreenState extends ConsumerState<CookDashboardScreen> {
     final stats = dashboard?['statistics'] as Map<String, dynamic>?;
     final recentOrders = (dashboard?['recentOrders'] as List<dynamic>?) ?? [];
 
-    final cookName = cookInfo?['name'] as String? ?? state.cook?['name'] ?? 'Chef Sarah';
-    final kitchenName = cookInfo?['kitchenName'] as String? ?? "Sarah's Gourmet Kitchen";
+    final cookName = cookInfo?['name'] as String? ?? state.cook?['name'] ?? 'Chef Sunethra';
+    final kitchenName = cookInfo?['kitchenName'] as String? ?? "Amma's Spice Kitchen";
     final profileImage = cookInfo?['profileImage'] as String? ?? '';
     final rating = (cookInfo?['rating'] as num?)?.toDouble() ?? 4.9;
     final isOnline = state.isOnline;
 
     final todayOrdersCount = stats?['todayOrders'] ?? 8;
-    final totalRevenue = (stats?['totalRevenue'] as num?)?.toDouble() ?? 324.50;
+    final totalRevenue = (stats?['totalRevenue'] as num?)?.toDouble() ?? 14250.00;
     final avgRating = (stats?['averageRating'] as num?)?.toDouble() ?? rating;
 
     return Scaffold(

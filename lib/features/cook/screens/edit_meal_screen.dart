@@ -253,7 +253,8 @@ class _EditMealScreenState extends ConsumerState<EditMealScreen> {
                             controller: _priceController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: 'Price (\$) *',
+                              labelText: 'Price (Rs.) *',
+                              prefixText: 'Rs. ',
                               filled: true,
                               fillColor: CookTheme.surfaceLight,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

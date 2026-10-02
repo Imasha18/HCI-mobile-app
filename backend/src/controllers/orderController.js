@@ -52,7 +52,7 @@ async function createOrder(req, res) {
     await Notification.create({
       user: cookId,
       title: 'New Order Received',
-      body: `You received a new order #${order.id} totaling \$${total.toFixed(2)}.`,
+      body: `You received a new order #${order.id} totaling Rs. ${total.toFixed(2)}.`,
     });
   }
 

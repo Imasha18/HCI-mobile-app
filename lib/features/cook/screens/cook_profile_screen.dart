@@ -109,10 +109,10 @@ class _CookProfileScreenState extends ConsumerState<CookProfileScreen> {
     final state = ref.watch(cookProvider);
     final cook = state.cook;
 
-    final cookName = cook?['name'] as String? ?? 'Chef Sarah';
-    final kitchenName = cook?['kitchenName'] as String? ?? "Sarah's Gourmet Kitchen";
-    final phone = cook?['phone'] as String? ?? '+1 555-019-2834';
-    final address = cook?['address'] as String? ?? '742 Evergreen Terrace, Brooklyn, NY';
+    final cookName = cook?['name'] as String? ?? 'Chef Sunethra Silva';
+    final kitchenName = cook?['kitchenName'] as String? ?? "Amma's Spice Kitchen";
+    final phone = cook?['phone'] as String? ?? '+94 77 234 5678';
+    final address = cook?['address'] as String? ?? '45/2 Galle Road, Colombo 03, Sri Lanka';
     final profileImage = cook?['profileImage'] as String? ?? '';
     final rating = (cook?['rating'] as num?)?.toDouble() ?? 4.9;
 
@@ -244,22 +244,22 @@ class _CookProfileScreenState extends ConsumerState<CookProfileScreen> {
                   _ProfileOptionTile(
                     icon: Icons.account_balance_rounded,
                     title: 'Bank Account & Payouts',
-                    subtitle: 'Direct deposit active • Ending in ...4912',
+                    subtitle: 'Direct deposit active • Commercial Bank ...4912',
                     onTap: () => _showInfoSheet(
                       context,
                       'Bank Account Settings',
-                      'Your payout account is linked to Chase Bank (Account ending in 4912). Daily earnings automatically transfer every midnight.',
+                      'Your payout account is linked to Commercial Bank of Ceylon (Account ending in 4912, Kollupitiya Branch). Daily earnings automatically transfer in Sri Lankan Rupees (Rs.) every midnight via CEFTS.',
                     ),
                   ),
                   const Divider(height: 1, indent: 64, color: Color(0xFFF0F0F0)),
                   _ProfileOptionTile(
                     icon: Icons.verified_user_rounded,
                     title: 'Food Safety & Documents',
-                    subtitle: 'Food Handler Certification verified',
+                    subtitle: 'Public Health Inspector (PHI) verified',
                     onTap: () => _showInfoSheet(
                       context,
                       'Verified Kitchen Documents',
-                      'Food Safety Certification: Active (Valid until 2027)\nKitchen Inspection: Grade A approved\nLiability Insurance: Enrolled via HomeBite Guarantee.',
+                      'PHI Hygiene Certification: Active (Valid until 2027)\nColombo Municipal Council (CMC) Food Handling Registration: Approved\nKitchen Inspection: Grade A approved\nLiability Insurance: Enrolled via HomeBite Guarantee.',
                     ),
                   ),
                   const Divider(height: 1, indent: 64, color: Color(0xFFF0F0F0)),
@@ -277,7 +277,7 @@ class _CookProfileScreenState extends ConsumerState<CookProfileScreen> {
                     onTap: () => _showInfoSheet(
                       context,
                       'Kitchen Settings',
-                      'Operating Hours: 11:00 AM - 10:00 PM\nDelivery Radius: 5.0 Miles\nAuto-Accept Orders: Enabled',
+                      'Operating Hours: 11:00 AM - 10:00 PM\nDelivery Coverage: Colombo & Western Province (7.0 km)\nCurrency: Sri Lankan Rupee (LKR / Rs.)\nAuto-Accept Orders: Enabled',
                     ),
                   ),
                 ],

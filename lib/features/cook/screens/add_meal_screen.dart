@@ -272,8 +272,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                             controller: _priceController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: 'Price (\$) *',
-                              hintText: '14.50',
+                              labelText: 'Price (Rs.) *',
+                              prefixText: 'Rs. ',
+                              hintText: '850',
                               filled: true,
                               fillColor: CookTheme.surfaceLight,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -328,7 +329,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       controller: _ingredientsController,
                       decoration: InputDecoration(
                         labelText: 'Ingredients (comma separated)',
-                        hintText: 'Rice, Chicken, Turmeric, Garlic',
+                        hintText: 'Samba rice, Curry leaves, Coconut milk, Pandan, Cardamom',
                         filled: true,
                         fillColor: CookTheme.surfaceLight,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -341,7 +342,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       controller: _dietaryController,
                       decoration: InputDecoration(
                         labelText: 'Dietary Information (comma separated)',
-                        hintText: 'Halal, Gluten-Free, Dairy-Free, Spicy',
+                        hintText: 'Halal, Vegetarian, Vegan, Spicy, Gluten-Free',
                         filled: true,
                         fillColor: CookTheme.surfaceLight,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
