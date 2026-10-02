@@ -115,7 +115,7 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Manage your kitchen, track live orders, and review daily earnings in real time.',
+                    'Manage your Sri Lankan kitchen, track live orders, and review daily earnings in Rs. (LKR) in real time.',
                     style: TextStyle(
                       fontSize: 15,
                       color: CookTheme.textMuted,

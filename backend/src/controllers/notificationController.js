@@ -28,7 +28,7 @@ async function listNotifications(req, res) {
       {
         user: req.user.id,
         title: 'Payment completed',
-        body: 'Payout of \$142.50 was credited to your kitchen balance.',
+        body: 'Payout of Rs. 14,250.00 was credited to your Commercial Bank account.',
         read: true,
       },
     ];

@@ -1,6 +1,6 @@
 class AppConstants {
-  static const appName = 'Table & Hearth';
-  static const currency = '\$';
+  static const appName = 'HomeBite';
+  static const currency = 'Rs. ';
 }
 
 class AppAssets {

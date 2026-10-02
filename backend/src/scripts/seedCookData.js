@@ -19,13 +19,13 @@ async function seedCook() {
   const cook = await User.findOneAndUpdate(
     { email: cookEmail },
     {
-      name: 'Chef Sarah Jay',
+      name: 'Chef Sunethra Silva',
       email: cookEmail,
       password: passwordHash,
       role: 'cook',
-      phone: '+1 555-019-2834',
-      address: '742 Evergreen Terrace, Brooklyn, NY',
-      kitchenName: "Sarah's Gourmet Kitchen",
+      phone: '+94 77 234 5678',
+      address: '45/2 Galle Road, Colombo 03, Sri Lanka',
+      kitchenName: "Amma's Spice Kitchen",
       profileImage: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=500&q=80',
       isVerified: true,
       rating: 4.9,
@@ -39,80 +39,93 @@ async function seedCook() {
   const customer = await User.findOneAndUpdate(
     { email: 'customer@homebite.com' },
     {
-      name: 'Michael Scott',
+      name: 'Nimal Jayasuriya',
       email: 'customer@homebite.com',
       password: passwordHash,
       role: 'customer',
-      phone: '+1 555-012-4455',
-      address: '1725 Slough Avenue, Brooklyn, NY',
+      phone: '+94 71 890 1234',
+      address: '18 Flower Road, Colombo 07, Sri Lanka',
       emailVerified: true,
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  // Seed meals across Rice, Curry, Kottu, Healthy
+  // Seed Sri Lankan meals across Rice, Curry, Kottu, Healthy
   const mealsData = [
     {
-      name: 'Fragrant Yellow Rice & Chicken',
-      description: 'Basmati rice cooked in turmeric ghee served with aromatic spiced roast chicken and spicy sambal.',
+      name: 'Authentic Sri Lankan Lamprais',
+      description: 'Fragrant samba rice cooked in rich stock, served with mixed spiced chicken curry, frikkadels, seeni sambol, and ash plantain wrapped and baked in a fresh banana leaf.',
       category: 'Rice',
-      price: 16.50,
-      prepTimeMinutes: 25,
+      price: 1450.00,
+      prepTimeMinutes: 30,
       imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&q=80',
-      ingredients: ['Basmati Rice', 'Chicken', 'Turmeric', 'Ghee', 'Cardamom', 'Onion'],
-      dietaryInformation: ['Halal', 'Gluten-Free'],
+      ingredients: ['Samba Rice', 'Spiced Chicken', 'Frikkadels', 'Seeni Sambol', 'Ash Plantain', 'Banana Leaf'],
+      dietaryInformation: ['Halal', 'Traditional'],
       available: true,
       rating: 4.9,
       cook: cook._id,
     },
     {
-      name: 'Creamy Coconut Fish Curry',
-      description: 'Fresh local fish simmered slowly in rich coconut milk with cinnamon, lemongrass, and green chili.',
+      name: 'Polos & Dhal Village Curry Plate',
+      description: 'Slow-cooked tender young jackfruit (polos) curry in thick roasted curry powder and coconut milk, accompanied by creamy tempered red lentil dhal.',
       category: 'Curry',
-      price: 18.00,
-      prepTimeMinutes: 30,
+      price: 750.00,
+      prepTimeMinutes: 25,
       imageUrl: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=600&q=80',
-      ingredients: ['Fish Fillet', 'Coconut Milk', 'Lemongrass', 'Curry Leaves', 'Garlic', 'Chili'],
-      dietaryInformation: ['Dairy-Free', 'High Protein'],
+      ingredients: ['Baby Jackfruit (Polos)', 'Red Lentils (Dhal)', 'Coconut Milk', 'Curry Leaves', 'Rampe', 'Garlic'],
+      dietaryInformation: ['Vegan', 'Gluten-Free'],
       available: true,
       rating: 4.8,
       cook: cook._id,
     },
     {
-      name: 'Special Chicken Kottu Roti',
-      description: 'Shredded godamba flatbread stir-fried vigorously with egg, chicken, fresh vegetables, and spicy curry sauce.',
+      name: 'Spicy Chicken Cheese Kottu',
+      description: 'Fresh godamba roti sliced and tossed vigorously on hot griddle with succulent spiced chicken, scrambled farm eggs, melted cheese, and aromatic gravy.',
       category: 'Kottu',
-      price: 14.50,
+      price: 1250.00,
       prepTimeMinutes: 20,
       imageUrl: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&q=80',
-      ingredients: ['Godamba Roti', 'Shredded Chicken', 'Eggs', 'Cabbage', 'Carrots', 'Curry Sauce'],
-      dietaryInformation: ['Contains Gluten', 'Spicy'],
+      ingredients: ['Godamba Roti', 'Shredded Roast Chicken', 'Cheese', 'Eggs', 'Leeks', 'Sri Lankan Spices'],
+      dietaryInformation: ['Halal', 'Spicy'],
       available: true,
       rating: 5.0,
       cook: cook._id,
     },
     {
-      name: 'Roasted Beet & Quinoa Bowl',
-      description: 'Nutrient-rich bowl with organic roasted beets, quinoa, avocado slices, chickpeas, and lemon tahini dressing.',
+      name: 'Red Rice & Gotukola Sambol Bowl',
+      description: 'Traditional Sri Lankan organic red raw rice served with freshly chopped pennywort (gotukola) coconut sambol, tempered dhal, and boiled farm egg.',
       category: 'Healthy',
-      price: 13.00,
+      price: 650.00,
       prepTimeMinutes: 15,
       imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&q=80',
-      ingredients: ['Quinoa', 'Beets', 'Chickpeas', 'Avocado', 'Tahini', 'Baby Spinach'],
-      dietaryInformation: ['Vegan', 'Gluten-Free', 'Organic'],
+      ingredients: ['Red Raw Rice', 'Gotukola', 'Fresh Grated Coconut', 'Red Onion', 'Lime Juice', 'Boiled Egg'],
+      dietaryInformation: ['Healthy', 'Vegetarian', 'High Fiber'],
       available: true,
       rating: 4.7,
       cook: cook._id,
     },
     {
-      name: 'Authentic Cheese & Egg Kottu',
-      description: 'Wok-tossed chopped roti with melted mozzarella cheese, eggs, onions, and mild curry essence.',
-      category: 'Kottu',
-      price: 15.00,
-      prepTimeMinutes: 20,
+      name: 'Jaffna Style Lagoon Crab Curry',
+      description: 'Fresh lagoon crabs simmered in authentic Jaffna roasted curry powder, tamarind pulp, thick coconut milk, and fragrant murunga leaves.',
+      category: 'Curry',
+      price: 1850.00,
+      prepTimeMinutes: 35,
       imageUrl: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=600&q=80',
-      ingredients: ['Roti', 'Mozzarella Cheese', 'Eggs', 'Leeks', 'Green Chilies'],
-      dietaryInformation: ['Vegetarian'],
+      ingredients: ['Fresh Lagoon Crab', 'Jaffna Curry Powder', 'Coconut Milk', 'Tamarind', 'Murunga Leaves'],
+      dietaryInformation: ['Spicy', 'Seafood', 'Gluten-Free'],
+      available: true,
+      rating: 4.9,
+      cook: cook._id,
+    },
+    {
+      name: 'Authentic Roast Paan Kottu',
+      description: 'Crispy roasted Sri Lankan bread (roast paan) chopped and stir-fried with farm eggs, green chillies, rich curry gravy, and melted cheese.',
+      category: 'Kottu',
+      price: 950.00,
+      prepTimeMinutes: 20,
+      imageUrl: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&q=80',
+      ingredients: ['Roast Paan', 'Farm Eggs', 'Green Chillies', 'Curry Gravy', 'Onions'],
+      dietaryInformation: ['Spicy', 'Vegetarian'],
       available: true,
       rating: 4.8,
       cook: cook._id,
@@ -129,55 +142,57 @@ async function seedCook() {
     seededMeals.push(meal);
   }
 
-  // Seed incoming and active orders
+  // Seed incoming and active Sri Lankan orders
   const ordersData = [
     {
       customer: customer._id,
       cook: cook._id,
       items: [
-        { meal: seededMeals[0]._id, name: seededMeals[0].name, quantity: 2, price: seededMeals[0].price },
-        { meal: seededMeals[2]._id, name: seededMeals[2].name, quantity: 1, price: seededMeals[2].price },
+        { meal: seededMeals[2]._id, name: seededMeals[2].name, quantity: 2, price: seededMeals[2].price },
+        { meal: seededMeals[1]._id, name: seededMeals[1].name, quantity: 1, price: seededMeals[1].price },
       ],
-      total: 47.50,
+      total: 3250.00,
       paymentStatus: 'paid',
       status: 'Order Received',
-      deliveryAddress: '245 Henry St, Apt 4B, Brooklyn, NY',
-      orderNotes: 'Please ring bell 4B upon arrival. Extra spicy on the side.',
+      deliveryAddress: '88 High Level Road, Nugegoda, Colombo',
+      orderNotes: 'Please add extra kochchi sambol and chili pieces on the side.',
     },
     {
       customer: customer._id,
       cook: cook._id,
       items: [
-        { meal: seededMeals[1]._id, name: seededMeals[1].name, quantity: 1, price: seededMeals[1].price },
+        { meal: seededMeals[0]._id, name: seededMeals[0].name, quantity: 2, price: seededMeals[0].price },
       ],
-      total: 18.00,
+      total: 2900.00,
       paymentStatus: 'paid',
       status: 'Preparing',
-      deliveryAddress: '112 Remsen St, Brooklyn, NY',
-      orderNotes: 'No coriander please.',
+      deliveryAddress: '14/3 Havelock Road, Colombo 05',
+      orderNotes: 'Extra seeni sambol if possible please.',
     },
     {
       customer: customer._id,
       cook: cook._id,
       items: [
         { meal: seededMeals[3]._id, name: seededMeals[3].name, quantity: 2, price: seededMeals[3].price },
+        { meal: seededMeals[5]._id, name: seededMeals[5].name, quantity: 1, price: seededMeals[5].price },
       ],
-      total: 26.00,
+      total: 2250.00,
       paymentStatus: 'paid',
       status: 'Ready For Pickup',
-      deliveryAddress: '55 Clark St, Brooklyn, NY',
-      orderNotes: 'Leave with doorman.',
+      deliveryAddress: '55 Nawala Road, Rajagiriya, Colombo',
+      orderNotes: 'Hand over to HomeBite delivery rider at gate.',
     },
     {
       customer: customer._id,
       cook: cook._id,
       items: [
-        { meal: seededMeals[0]._id, name: seededMeals[0].name, quantity: 3, price: seededMeals[0].price },
+        { meal: seededMeals[4]._id, name: seededMeals[4].name, quantity: 1, price: seededMeals[4].price },
+        { meal: seededMeals[3]._id, name: seededMeals[3].name, quantity: 2, price: seededMeals[3].price },
       ],
-      total: 49.50,
+      total: 3150.00,
       paymentStatus: 'paid',
       status: 'Completed',
-      deliveryAddress: '88 Montague St, Brooklyn, NY',
+      deliveryAddress: '102 Ward Place, Colombo 07',
     },
   ];
 
@@ -193,9 +208,9 @@ async function seedCook() {
     }
   }
 
-  // Seed sample earnings for past week
+  // Seed sample daily earnings in Sri Lankan Rupees (Rs.) for past week
   const pastDays = [0, 1, 2, 3, 4, 5, 6];
-  const sampleAmounts = [142.50, 98.00, 175.50, 120.00, 210.00, 185.00, 160.00];
+  const sampleAmounts = [14250.00, 9800.00, 17550.00, 12000.00, 21000.00, 18500.00, 16000.00];
 
   for (let i = 0; i < pastDays.length; i++) {
     const d = new Date();
@@ -216,7 +231,7 @@ async function seedCook() {
     }
   }
 
-  console.log('Successfully seeded cook, meals, orders, and earnings!');
+  console.log('Successfully seeded Sri Lankan cook, meals, orders, and earnings in Rs. (LKR)!');
   console.log(`Cook login: ${cookEmail} | Password: ${cookPassword}`);
 }
 

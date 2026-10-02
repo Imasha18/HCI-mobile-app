@@ -8,6 +8,9 @@ class CookTheme {
   static const Color surfaceLight = Color(0xFFFAFAFA);
   static const Color background = Color(0xFFFFFFFF);
 
+  // Currency
+  static const String currency = 'Rs. ';
+
   // Text Colors
   static const Color textDark = Color(0xFF212121);
   static const Color textMuted = Color(0xFF757575);
