@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  listAllCooks,
   getCookProfile,
   getMyProfile,
   updateMyProfile,
@@ -23,6 +24,9 @@ router.get('/meals', authenticate, authorizeRoles('cook'), getCookMeals);
 router.get('/orders', authenticate, authorizeRoles('cook'), getCookOrders);
 router.get('/orders/:id', authenticate, authorizeRoles('cook'), getCookOrderById);
 router.get('/earnings', authenticate, authorizeRoles('cook'), getCookEarnings);
+
+// Public list of all cooks/suppliers
+router.get('/', listAllCooks);
 
 // Public profile by cook id
 router.get('/:id', getCookProfile);

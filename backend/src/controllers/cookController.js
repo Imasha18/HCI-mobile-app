@@ -4,6 +4,24 @@ const Meal = require('../models/Meal');
 const Order = require('../models/Order');
 const Earning = require('../models/Earning');
 
+// Public list of all cooks/suppliers (for customer view)
+async function listAllCooks(req, res) {
+  const cooks = await User.find({ role: 'cook' })
+    .select('name kitchenName profileImage rating address phone isOnline isVerified')
+    .sort({ rating: -1 });
+
+  const cooksWithMeals = await Promise.all(
+    cooks.map(async (cook) => {
+      const mealCount = await Meal.countDocuments({ cook: cook._id, available: true });
+      return {
+        ...cook.toObject(),
+        mealCount,
+      };
+    })
+  );
+  return sendSuccess(res, cooksWithMeals);
+}
+
 // Public cook profile (for customer view)
 async function getCookProfile(req, res) {
   const cook = await User.findOne({ _id: req.params.id, role: 'cook' }).select('-password');
@@ -178,6 +196,7 @@ async function getCookEarnings(req, res) {
 }
 
 module.exports = {
+  listAllCooks,
   getCookProfile,
   getMyProfile,
   updateMyProfile,
