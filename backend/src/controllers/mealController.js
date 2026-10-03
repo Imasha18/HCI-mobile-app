@@ -33,7 +33,12 @@ async function listMeals(req, res) {
       { category: { $regex: req.query.q, $options: 'i' } },
     ];
   }
-  return sendSuccess(res, await Meal.find(filter).populate('cook', 'name address phone'));
+  return sendSuccess(
+    res,
+    await Meal.find(filter)
+      .populate('cook', 'name kitchenName profileImage rating address phone')
+      .sort({ createdAt: -1 })
+  );
 }
 
 async function searchMeals(req, res) {
@@ -44,7 +49,8 @@ async function getMeal(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(404).json({ success: false, message: 'Meal not found' });
   }
-  const meal = await Meal.findById(req.params.id).populate('cook', 'name');
+  const meal = await Meal.findById(req.params.id)
+    .populate('cook', 'name kitchenName profileImage rating address phone');
   if (!meal) return res.status(404).json({ success: false, message: 'Meal not found' });
   return sendSuccess(res, meal);
 }

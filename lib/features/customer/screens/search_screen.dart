@@ -48,22 +48,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
-              children:
-                  ['Breakfast', 'Lunch', 'Dinner', 'Healthy', 'Vegetarian']
-                      .map(
-                        (category) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text(category),
-                            selected: _category == category,
-                            onSelected: (_) {
-                              setState(() => _category = category);
-                              _search();
-                            },
-                          ),
-                        ),
-                      )
-                      .toList(),
+              children: ['All', 'Rice', 'Curry', 'Kottu', 'Healthy']
+                  .map(
+                    (category) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(category),
+                        selected: category == 'All'
+                            ? _category == null
+                            : _category == category,
+                        selectedColor: const Color(0xFFFFF3E0),
+                        onSelected: (_) {
+                          setState(
+                            () => _category = category == 'All' ? null : category,
+                          );
+                          _search();
+                        },
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
           Expanded(
@@ -72,12 +76,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final meal = items[index];
+                  final imageUrl = meal.imageUrl;
                   return ListTile(
-                    title: Text(meal.name),
-                    subtitle: Text(
-                      '${meal.cookName ?? 'Local cook'} · ${meal.rating ?? '-'} ★',
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: imageUrl != null && imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const CircleAvatar(
+                                backgroundColor: Color(0xFFFFF3E0),
+                                child: Icon(
+                                  Icons.restaurant,
+                                  color: Color(0xFFFF9800),
+                                ),
+                              ),
+                            )
+                          : const CircleAvatar(
+                              backgroundColor: Color(0xFFFFF3E0),
+                              child: Icon(
+                                Icons.restaurant,
+                                color: Color(0xFFFF9800),
+                              ),
+                            ),
                     ),
-                    trailing: Text('Rs ${meal.price.toStringAsFixed(2)}'),
+                    title: Text(
+                      meal.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      '${meal.cookName ?? 'Home Cook Kitchen'} · ${meal.rating ?? '4.8'} ★',
+                    ),
+                    trailing: Text(
+                      'Rs. ${meal.price.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF9800),
+                      ),
+                    ),
                     onTap: () => Navigator.pushNamed(
                       context,
                       AppRoutes.mealDetails,
