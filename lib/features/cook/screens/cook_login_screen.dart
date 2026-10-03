@@ -327,7 +327,18 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Return to customer login link
+                  // Return to role selection / customer login link
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.pushNamed(context, AppRoutes.roleSelection),
+                      icon: const Icon(Icons.people_outline_rounded, size: 16, color: CookTheme.textMuted),
+                      label: const Text(
+                        'How will you join us? Select Role',
+                        style: TextStyle(color: CookTheme.textMuted, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   Center(
                     child: TextButton.icon(
                       onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.login),

@@ -1,4 +1,6 @@
 class AppRoutes {
+  static const welcome = '/welcome';
+  static const roleSelection = '/role-selection';
   static const login = '/';
   static const home = '/home';
   static const register = '/register';
