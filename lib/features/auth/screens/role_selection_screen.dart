@@ -133,12 +133,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 iconBgColor: const Color(0xFFA5D6A7),
                 iconColor: const Color(0xFF2E7D32),
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Rider delivery portal available for registered delivery partners.'),
-                      backgroundColor: Color(0xFF2E7D32),
-                    ),
-                  );
+                  Navigator.pushNamed(context, AppRoutes.riderLogin);
                 },
               ),
 

@@ -9,6 +9,7 @@
     "start": "node src/server.js",
     "seed:customer": "node src/scripts/seedCustomerData.js",
     "seed:cook": "node src/scripts/seedCookData.js",
+    "seed:rider": "node src/scripts/seedRiderData.js",
     "test": "jest --runInBand"
   },
   "dependencies": {
