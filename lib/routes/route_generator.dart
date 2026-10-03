@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../config/app_routes.dart';
+import '../features/auth/screens/role_selection_screen.dart';
+import '../features/auth/screens/welcome_screen.dart';
 import '../features/customer/screens/customer_login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/screens/verify_email_screen.dart';
@@ -35,7 +37,10 @@ import '../features/cook/screens/cook_notifications_screen.dart';
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
     final Widget page = switch (settings.name) {
+      AppRoutes.welcome => const WelcomeScreen(),
+      AppRoutes.roleSelection => const RoleSelectionScreen(),
       AppRoutes.login => const CustomerLoginScreen(),
+      AppRoutes.customerLogin => const CustomerLoginScreen(),
       AppRoutes.cookLogin => const CookLoginScreen(),
       AppRoutes.cookDashboard => const CookDashboardScreen(),
       AppRoutes.manageMenu => const ManageMenuScreen(),
