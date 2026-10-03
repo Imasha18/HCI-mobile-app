@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, registerCook, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me } = require('../controllers/authController');
+const { register, registerCook, registerRider, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me } = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateBody } = require('../middleware/validateMiddleware');
 const { validateAuth, validateRegistration, validatePasswordReset } = require('../validators/authValidator');
@@ -7,6 +7,7 @@ const { validateAuth, validateRegistration, validatePasswordReset } = require('.
 const router = express.Router();
 router.post('/register', validateBody(validateRegistration), register);
 router.post('/register-cook', registerCook);
+router.post('/register-rider', registerRider);
 router.post('/login', validateBody(validateAuth), login);
 router.post('/verify-email', verifyEmail);
 router.post('/google', googleLogin);

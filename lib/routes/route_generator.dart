@@ -33,6 +33,8 @@ import '../features/cook/screens/preparing_order_screen.dart';
 import '../features/cook/screens/cook_earnings_screen.dart';
 import '../features/cook/screens/cook_profile_screen.dart' as cook;
 import '../features/cook/screens/cook_notifications_screen.dart';
+import '../features/rider/screens/rider_login_screen.dart';
+import '../features/rider/screens/rider_dashboard_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -43,6 +45,8 @@ class RouteGenerator {
       AppRoutes.customerLogin => const CustomerLoginScreen(),
       AppRoutes.cookLogin => const CookLoginScreen(),
       AppRoutes.cookDashboard => const CookDashboardScreen(),
+      AppRoutes.riderLogin => const RiderLoginScreen(),
+      AppRoutes.riderDashboard => const RiderDashboardScreen(),
       AppRoutes.manageMenu => const ManageMenuScreen(),
       AppRoutes.addMeal => const AddMealScreen(),
       AppRoutes.editMeal => EditMealScreen(
