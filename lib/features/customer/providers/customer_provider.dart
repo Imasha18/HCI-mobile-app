@@ -9,11 +9,32 @@ final customerProvider = NotifierProvider<CustomerNotifier, CustomerState>(
 );
 
 class CustomerState {
-  const CustomerState({this.isLoading = false, this.user, this.error});
+  const CustomerState({
+    this.isLoading = false,
+    this.isRefreshing = false,
+    this.user,
+    this.error,
+  });
 
   final bool isLoading;
+  final bool isRefreshing;
   final Map<String, dynamic>? user;
   final String? error;
+
+  CustomerState copyWith({
+    bool? isLoading,
+    bool? isRefreshing,
+    Map<String, dynamic>? user,
+    String? error,
+    bool clearError = false,
+  }) {
+    return CustomerState(
+      isLoading: isLoading ?? this.isLoading,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+      user: user ?? this.user,
+      error: clearError ? null : (error ?? this.error),
+    );
+  }
 }
 
 class CustomerNotifier extends Notifier<CustomerState> {
@@ -22,14 +43,91 @@ class CustomerNotifier extends Notifier<CustomerState> {
   @override
   CustomerState build() => const CustomerState();
 
+  Map<String, dynamic> _normalizeUser(Map<String, dynamic> data) {
+    final rawUser = Map<String, dynamic>.from(data);
+    final role = rawUser['role'];
+    return {
+      ...rawUser,
+      'id': rawUser['_id'] ?? rawUser['id'] ?? '',
+      'role': role ?? 'customer',
+      'name': rawUser['name'] ?? 'HomeBite customer',
+      'email': rawUser['email'] ?? '',
+      'profileImage': rawUser['profileImage'] ?? rawUser['avatar'] ?? '',
+    };
+  }
+
+  Future<bool> loadProfile({bool forceRefresh = false}) async {
+    if (!forceRefresh && state.user != null) {
+      return true;
+    }
+
+    state = state.copyWith(
+      isLoading: state.user == null,
+      isRefreshing: forceRefresh && state.user != null,
+      clearError: true,
+    );
+
+    try {
+      final response = await ApiClient().getCached(
+        '/auth/me',
+        ttl: const Duration(minutes: 2),
+        forceRefresh: forceRefresh,
+      );
+      final payload = response.data['data'] as Map<String, dynamic>? ??
+          <String, dynamic>{};
+      final user = _normalizeUser(payload);
+      if (user['role'] != 'customer') {
+        state = state.copyWith(
+          isLoading: false,
+          isRefreshing: false,
+          error: 'Customer access only.',
+        );
+        return false;
+      }
+
+      state = state.copyWith(
+        isLoading: false,
+        isRefreshing: false,
+        user: user,
+        clearError: true,
+      );
+      return true;
+    } on DioException catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        isRefreshing: false,
+        error: ApiClient.messageFrom(error),
+      );
+      return false;
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        isRefreshing: false,
+        error: 'Unable to load your profile right now.',
+      );
+      return false;
+    }
+  }
+
   Future<bool> restoreSession() async {
     final token = await _storage.read(key: 'auth_token');
     if (token == null || token.isEmpty) return false;
+    ApiClient().updateAuthToken(token);
     try {
-      final response = await ApiClient().dio.get('/auth/me');
-      final user = response.data['data'] as Map<String, dynamic>;
+      final response = await ApiClient().getCached(
+        '/auth/me',
+        ttl: const Duration(minutes: 2),
+      );
+      final payload = response.data['data'] as Map<String, dynamic>? ??
+          <String, dynamic>{};
+      final user = _normalizeUser(payload);
       if (user['role'] != 'customer') return false;
-      state = CustomerState(user: user);
+      state = state.copyWith(
+        user: user,
+        isLoading: false,
+        isRefreshing: false,
+        clearError: true,
+      );
       return true;
     } on DioException {
       await logout();
@@ -39,6 +137,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
 
   Future<void> logout() async {
     await _storage.delete(key: 'auth_token');
+    ApiClient().clearCache();
     state = const CustomerState();
   }
 
@@ -65,14 +164,17 @@ class CustomerNotifier extends Notifier<CustomerState> {
         state = const CustomerState(error: 'This login is for customers only.');
         return false;
       }
+      final token = payload['token'] as String;
       await _storage.write(
         key: 'auth_token',
-        value: payload['token'] as String,
+        value: token,
       );
+      ApiClient().updateAuthToken(token);
       state = CustomerState(user: user);
       return true;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
+      ApiClient().clearCache();
       state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }
@@ -102,6 +204,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
       return true;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
+      ApiClient().clearCache();
       state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }
@@ -115,10 +218,12 @@ class CustomerNotifier extends Notifier<CustomerState> {
         data: {'email': email.trim(), 'code': code.trim()},
       );
       final payload = response.data['data'] as Map<String, dynamic>;
+      final token = payload['token'] as String;
       await _storage.write(
         key: 'auth_token',
-        value: payload['token'] as String,
+        value: token,
       );
+      ApiClient().updateAuthToken(token);
       state = CustomerState(user: payload['user'] as Map<String, dynamic>);
       return true;
     } on DioException catch (error) {
@@ -134,10 +239,12 @@ class CustomerNotifier extends Notifier<CustomerState> {
         data: {'idToken': idToken},
       );
       final payload = response.data['data'] as Map<String, dynamic>;
+      final token = payload['token'] as String;
       await _storage.write(
         key: 'auth_token',
-        value: payload['token'] as String,
+        value: token,
       );
+      ApiClient().updateAuthToken(token);
       state = CustomerState(user: payload['user'] as Map<String, dynamic>);
       return true;
     } on DioException catch (error) {

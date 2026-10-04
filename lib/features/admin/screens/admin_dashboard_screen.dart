@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_routes.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_theme.dart';
+import 'admin_profile_screen.dart';
+import 'order_monitoring_screen.dart';
+import 'reports_screen.dart';
+import 'user_management_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -23,24 +27,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   void _onBottomNavTapped(int index) {
     if (index == _currentNavIndex) return;
-
-    switch (index) {
-      case 0:
-        setState(() => _currentNavIndex = 0);
-        break;
-      case 1:
-        Navigator.pushNamed(context, AppRoutes.adminUsers);
-        break;
-      case 2:
-        Navigator.pushNamed(context, AppRoutes.adminOrders);
-        break;
-      case 3:
-        Navigator.pushNamed(context, AppRoutes.adminReports);
-        break;
-      case 4:
-        Navigator.pushNamed(context, AppRoutes.adminProfile);
-        break;
-    }
+    setState(() => _currentNavIndex = index);
   }
 
   @override
@@ -59,99 +46,114 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final openComplaints = data['openComplaints'] ?? 0;
     final recentActivities = (data['recentActivities'] as List?) ?? [];
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: _currentNavIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentNavIndex != 0) {
+          setState(() => _currentNavIndex = 0);
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: AdminTheme.primaryLight,
-                shape: BoxShape.circle,
-                border: Border.all(color: AdminTheme.primary.withValues(alpha: 0.3)),
-              ),
-              child: const Icon(Icons.admin_panel_settings, color: AdminTheme.primary, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user['name'] ?? 'Admin Panel',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AdminTheme.textPrimary,
-                  ),
-                ),
-                const Text(
-                  'Super Administrator',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AdminTheme.primaryDark,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications_outlined, color: AdminTheme.textPrimary, size: 24),
-                if (pendingVerifications > 0 || openComplaints > 0)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AdminTheme.statusRejected,
+        appBar: _currentNavIndex == 0
+            ? AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                automaticallyImplyLeading: false,
+                title: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AdminTheme.primaryLight,
                         shape: BoxShape.circle,
+                        border: Border.all(color: AdminTheme.primary.withValues(alpha: 0.3)),
                       ),
-                      child: Text(
-                        '${pendingVerifications + openComplaints}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Icon(Icons.admin_panel_settings, color: AdminTheme.primary, size: 22),
                     ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user['name'] ?? 'Admin Panel',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AdminTheme.textPrimary,
+                          ),
+                        ),
+                        const Text(
+                          'Super Administrator',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AdminTheme.primaryDark,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                actions: [
+                  IconButton(
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_outlined, color: AdminTheme.textPrimary, size: 24),
+                        if (pendingVerifications > 0 || openComplaints > 0)
+                          Positioned(
+                            right: -2,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: AdminTheme.statusRejected,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${pendingVerifications + openComplaints}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    onPressed: () => Navigator.pushNamed(context, AppRoutes.adminNotifications),
                   ),
-              ],
-            ),
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.adminNotifications),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AdminTheme.textSecondary, size: 22),
-            onPressed: () async {
-              await ref.read(adminProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
-              }
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: RefreshIndicator(
-        color: AdminTheme.primary,
-        onRefresh: () => ref.read(adminProvider.notifier).fetchDashboard(),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: AdminTheme.textSecondary, size: 22),
+                    onPressed: () async {
+                      await ref.read(adminProvider.notifier).logout();
+                      if (context.mounted) {
+                        Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              )
+            : null,
+        body: IndexedStack(
+          index: _currentNavIndex,
+          children: [
+            RefreshIndicator(
+              color: AdminTheme.primary,
+              onRefresh: () => ref.read(adminProvider.notifier).fetchDashboard(forceRefresh: true),
+              child: SingleChildScrollView(
+                key: const PageStorageKey<String>('admin_dashboard_scroll'),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               // Welcome Banner
               Container(
                 width: double.infinity,
@@ -417,112 +419,115 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 )
               else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: recentActivities.length > 5 ? 5 : recentActivities.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final item = recentActivities[index] as Map<String, dynamic>;
-                    final type = item['type'] as String? ?? 'general';
-                    final title = item['title'] as String? ?? 'Activity';
-                    final subtitle = item['subtitle'] as String? ?? '';
-                    final status = item['status'] as String? ?? '';
+                Column(
+                  children: [
+                    for (int i = 0; i < (recentActivities.length > 5 ? 5 : recentActivities.length); i++) ...[
+                      if (i > 0) const SizedBox(height: 10),
+                      Builder(
+                        builder: (context) {
+                          final item = recentActivities[i] as Map<String, dynamic>;
+                          final type = item['type'] as String? ?? 'general';
+                          final title = item['title'] as String? ?? 'Activity';
+                          final subtitle = item['subtitle'] as String? ?? '';
+                          final status = item['status'] as String? ?? '';
 
-                    IconData icon;
-                    Color iconColor;
-                    Color iconBg;
+                          IconData icon;
+                          Color iconColor;
+                          Color iconBg;
 
-                    if (type.contains('cook')) {
-                      icon = Icons.restaurant_rounded;
-                      iconColor = AdminTheme.primary;
-                      iconBg = AdminTheme.primaryLight;
-                    } else if (type.contains('rider')) {
-                      icon = Icons.two_wheeler_rounded;
-                      iconColor = const Color(0xFF5E35B1);
-                      iconBg = const Color(0xFFEDE7F6);
-                    } else if (type.contains('order')) {
-                      icon = Icons.receipt_rounded;
-                      iconColor = const Color(0xFF1976D2);
-                      iconBg = const Color(0xFFE3F2FD);
-                    } else if (type.contains('complaint')) {
-                      icon = Icons.warning_amber_rounded;
-                      iconColor = AdminTheme.statusRejected;
-                      iconBg = AdminTheme.statusRejectedBg;
-                    } else {
-                      icon = Icons.person_add_rounded;
-                      iconColor = const Color(0xFF00897B);
-                      iconBg = const Color(0xFFE0F2F1);
-                    }
+                          if (type.contains('cook')) {
+                            icon = Icons.restaurant_rounded;
+                            iconColor = AdminTheme.primary;
+                            iconBg = AdminTheme.primaryLight;
+                          } else if (type.contains('rider')) {
+                            icon = Icons.two_wheeler_rounded;
+                            iconColor = const Color(0xFF5E35B1);
+                            iconBg = const Color(0xFFEDE7F6);
+                          } else if (type.contains('order')) {
+                            icon = Icons.receipt_rounded;
+                            iconColor = const Color(0xFF1976D2);
+                            iconBg = const Color(0xFFE3F2FD);
+                          } else if (type.contains('complaint')) {
+                            icon = Icons.warning_amber_rounded;
+                            iconColor = AdminTheme.statusRejected;
+                            iconBg = AdminTheme.statusRejectedBg;
+                          } else {
+                            icon = Icons.person_add_rounded;
+                            iconColor = const Color(0xFF00897B);
+                            iconBg = const Color(0xFFE0F2F1);
+                          }
 
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: AdminTheme.cardDecoration(),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: iconBg,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(icon, color: iconColor, size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: AdminTheme.cardDecoration(),
+                            child: Row(
                               children: [
-                                Text(
-                                  title,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: AdminTheme.textPrimary,
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: iconBg,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(icon, color: iconColor, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: AdminTheme.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        subtitle,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AdminTheme.textSecondary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  subtitle,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AdminTheme.textSecondary,
+                                if (status.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: status.toLowerCase() == 'pending'
+                                          ? AdminTheme.statusPendingBg
+                                          : status.toLowerCase() == 'delivered' || status.toLowerCase() == 'verified'
+                                              ? AdminTheme.statusApprovedBg
+                                              : AdminTheme.surface,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      status,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: status.toLowerCase() == 'pending'
+                                            ? AdminTheme.statusPending
+                                            : status.toLowerCase() == 'delivered' || status.toLowerCase() == 'verified'
+                                                ? AdminTheme.statusApproved
+                                                : AdminTheme.textSecondary,
+                                      ),
+                                    ),
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
                               ],
                             ),
-                          ),
-                          if (status.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: status.toLowerCase() == 'pending'
-                                    ? AdminTheme.statusPendingBg
-                                    : status.toLowerCase() == 'delivered' || status.toLowerCase() == 'verified'
-                                        ? AdminTheme.statusApprovedBg
-                                        : AdminTheme.surface,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                status,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: status.toLowerCase() == 'pending'
-                                      ? AdminTheme.statusPending
-                                      : status.toLowerCase() == 'delivered' || status.toLowerCase() == 'verified'
-                                          ? AdminTheme.statusApproved
-                                          : AdminTheme.textSecondary,
-                                ),
-                              ),
-                            ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
+                    ],
+                  ],
                 ),
 
               const SizedBox(height: 24),
@@ -530,39 +535,46 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentNavIndex,
-        onTap: _onBottomNavTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AdminTheme.primary,
-        unselectedItemColor: AdminTheme.textMuted,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-        unselectedLabelStyle: const TextStyle(fontSize: 11),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group_rounded),
-            label: 'Users',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long_rounded),
-            label: 'Orders',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics_rounded),
-            label: 'Reports',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-        ],
+      const UserManagementScreen(),
+      const OrderMonitoringScreen(),
+      const ReportsScreen(),
+      const AdminProfileScreen(),
+    ],
+  ),
+  bottomNavigationBar: BottomNavigationBar(
+    currentIndex: _currentNavIndex,
+    onTap: _onBottomNavTapped,
+    type: BottomNavigationBarType.fixed,
+    backgroundColor: Colors.white,
+    selectedItemColor: AdminTheme.primary,
+    unselectedItemColor: AdminTheme.textMuted,
+    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+    unselectedLabelStyle: const TextStyle(fontSize: 11),
+    items: const [
+      BottomNavigationBarItem(
+        icon: Icon(Icons.dashboard_rounded),
+        label: 'Dashboard',
       ),
-    );
+      BottomNavigationBarItem(
+        icon: Icon(Icons.group_rounded),
+        label: 'Users',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.receipt_long_rounded),
+        label: 'Orders',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.analytics_rounded),
+        label: 'Reports',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.person_rounded),
+        label: 'Profile',
+      ),
+    ],
+  ),
+),
+);
   }
 }
 

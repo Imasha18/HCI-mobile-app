@@ -47,10 +47,10 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
 
   final ApiClient _client;
 
-  Future<void> loadAllUsers() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> loadAllUsers({bool forceRefresh = false}) async {
+    state = state.copyWith(isLoading: state.users.isEmpty, clearError: true);
     try {
-      final res = await _client.dio.get('/admin/users');
+      final res = await _client.getCached('/admin/users', forceRefresh: forceRefresh);
       final dataList = (res.data['data'] as List)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -73,10 +73,10 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     }
   }
 
-  Future<void> loadCustomers() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> loadCustomers({bool forceRefresh = false}) async {
+    state = state.copyWith(isLoading: state.customers.isEmpty, clearError: true);
     try {
-      final res = await _client.dio.get('/admin/customers');
+      final res = await _client.getCached('/admin/customers', forceRefresh: forceRefresh);
       final dataList = (res.data['data'] as List)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -99,10 +99,10 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     }
   }
 
-  Future<void> loadCooks() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> loadCooks({bool forceRefresh = false}) async {
+    state = state.copyWith(isLoading: state.cooks.isEmpty, clearError: true);
     try {
-      final res = await _client.dio.get('/admin/cooks');
+      final res = await _client.getCached('/admin/cooks', forceRefresh: forceRefresh);
       final dataList = (res.data['data'] as List)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -125,10 +125,10 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     }
   }
 
-  Future<void> loadRiders() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> loadRiders({bool forceRefresh = false}) async {
+    state = state.copyWith(isLoading: state.riders.isEmpty, clearError: true);
     try {
-      final res = await _client.dio.get('/admin/riders');
+      final res = await _client.getCached('/admin/riders', forceRefresh: forceRefresh);
       final dataList = (res.data['data'] as List)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -151,14 +151,22 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     }
   }
 
+  void _invalidateUserCaches() {
+    _client.invalidateCache('/admin/users');
+    _client.invalidateCache('/admin/customers');
+    _client.invalidateCache('/admin/cooks');
+    _client.invalidateCache('/admin/riders');
+  }
+
   Future<bool> blockUser(String id) async {
     try {
       final res = await _client.dio.patch('/admin/users/$id/block');
       if (res.data['success'] == true) {
-        await loadAllUsers();
-        await loadCustomers();
-        await loadCooks();
-        await loadRiders();
+        _invalidateUserCaches();
+        await loadAllUsers(forceRefresh: true);
+        await loadCustomers(forceRefresh: true);
+        await loadCooks(forceRefresh: true);
+        await loadRiders(forceRefresh: true);
         return true;
       }
       return false;
@@ -171,10 +179,11 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     try {
       final res = await _client.dio.patch('/admin/users/$id/unblock');
       if (res.data['success'] == true) {
-        await loadAllUsers();
-        await loadCustomers();
-        await loadCooks();
-        await loadRiders();
+        _invalidateUserCaches();
+        await loadAllUsers(forceRefresh: true);
+        await loadCustomers(forceRefresh: true);
+        await loadCooks(forceRefresh: true);
+        await loadRiders(forceRefresh: true);
         return true;
       }
       return false;
@@ -187,10 +196,11 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     try {
       final res = await _client.dio.delete('/admin/users/$id');
       if (res.data['success'] == true) {
-        await loadAllUsers();
-        await loadCustomers();
-        await loadCooks();
-        await loadRiders();
+        _invalidateUserCaches();
+        await loadAllUsers(forceRefresh: true);
+        await loadCustomers(forceRefresh: true);
+        await loadCooks(forceRefresh: true);
+        await loadRiders(forceRefresh: true);
         return true;
       }
       return false;
@@ -205,8 +215,9 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
         'status': status,
       });
       if (res.data['success'] == true) {
-        await loadCooks();
-        await loadAllUsers();
+        _invalidateUserCaches();
+        await loadCooks(forceRefresh: true);
+        await loadAllUsers(forceRefresh: true);
         return true;
       }
       return false;
@@ -221,8 +232,9 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
         'status': status,
       });
       if (res.data['success'] == true) {
-        await loadRiders();
-        await loadAllUsers();
+        _invalidateUserCaches();
+        await loadRiders(forceRefresh: true);
+        await loadAllUsers(forceRefresh: true);
         return true;
       }
       return false;

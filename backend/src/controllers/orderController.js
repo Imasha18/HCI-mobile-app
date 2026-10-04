@@ -6,10 +6,26 @@ const Delivery = require('../models/Delivery');
 const Notification = require('../models/Notification');
 const Earning = require('../models/Earning');
 const { sendSuccess } = require('../utils/apiResponse');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 async function listOrders(req, res) {
   // If user is cook, return cook's orders, else customer's orders
   const filter = req.user.role === 'cook' ? { cook: req.user.id } : { customer: req.user.id };
+
+  if (req.query.page || req.query.limit) {
+    const { page, limit, skip } = parsePagination(req.query, 10);
+    const total = await Order.countDocuments(filter);
+    const orders = await Order.find(filter)
+      .populate('customer', 'name phone address')
+      .populate('cook', 'name kitchenName phone address profileImage')
+      .populate('rider', 'name phone vehicleDetails rating profileImage')
+      .populate('items.meal', 'name imageUrl price category')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    return sendSuccess(res, orders, 'Success', 200, buildPaginationMeta(page, limit, total, orders.length));
+  }
+
   const orders = await Order.find(filter)
     .populate('customer', 'name phone address')
     .populate('cook', 'name kitchenName phone address profileImage')

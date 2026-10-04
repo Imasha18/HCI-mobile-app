@@ -73,17 +73,17 @@ class WelcomeScreen extends StatelessWidget {
                   const SizedBox(height: 36),
 
                   // Three preview pills from prototype
-                  _FeaturePill(
+                  const _FeaturePill(
                     icon: Icons.fastfood_rounded,
                     text: 'Order delicious home meals',
                   ),
                   const SizedBox(height: 12),
-                  _FeaturePill(
+                  const _FeaturePill(
                     icon: Icons.soup_kitchen_rounded,
                     text: 'Cook & earn from home',
                   ),
                   const SizedBox(height: 12),
-                  _FeaturePill(
+                  const _FeaturePill(
                     icon: Icons.two_wheeler_rounded,
                     text: 'Deliver & make money',
                   ),
@@ -106,7 +106,7 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushNamed(context, AppRoutes.roleSelection);
+                        Navigator.pushNamed(context, AppRoutes.onboarding);
                       },
                       child: const Text(
                         'Get Started',

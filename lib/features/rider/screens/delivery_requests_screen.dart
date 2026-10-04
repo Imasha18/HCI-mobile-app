@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/delivery_provider.dart';
 import '../theme/rider_theme.dart';
 
@@ -14,6 +15,7 @@ class DeliveryRequestsScreen extends ConsumerStatefulWidget {
 
 class _DeliveryRequestsScreenState extends ConsumerState<DeliveryRequestsScreen> {
   final Set<String> _dismissedIds = {};
+  bool _accepting = false;
 
   @override
   void initState() {
@@ -48,8 +50,10 @@ class _DeliveryRequestsScreenState extends ConsumerState<DeliveryRequestsScreen>
         ],
       ),
       body: state.isLoading && available.isEmpty
-          ? const Center(
-              child: CircularProgressIndicator(color: RiderTheme.primaryGreen),
+          ? ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              itemBuilder: (context, index) => const OrderCardSkeleton(),
             )
           : RefreshIndicator(
               color: RiderTheme.primaryGreen,
@@ -105,6 +109,7 @@ class _DeliveryRequestsScreenState extends ConsumerState<DeliveryRequestsScreen>
                       ],
                     )
                   : ListView.builder(
+                      key: const PageStorageKey<String>('rider_delivery_requests_scroll'),
                       padding: const EdgeInsets.all(16),
                       itemCount: available.length,
                       itemBuilder: (context, index) {
@@ -118,14 +123,20 @@ class _DeliveryRequestsScreenState extends ConsumerState<DeliveryRequestsScreen>
                             );
                           },
                           onAccept: (del) async {
-                            final id = (del['_id'] ?? del['id'] ?? '').toString();
-                            final success = await ref.read(deliveryProvider.notifier).acceptDelivery(id);
-                            if (success && context.mounted) {
-                              Navigator.pushReplacementNamed(
-                                context,
-                                AppRoutes.acceptDelivery,
-                                arguments: del,
-                              );
+                            if (_accepting) return;
+                            _accepting = true;
+                            try {
+                              final id = (del['_id'] ?? del['id'] ?? '').toString();
+                              final success = await ref.read(deliveryProvider.notifier).acceptDelivery(id);
+                              if (success && context.mounted) {
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  AppRoutes.acceptDelivery,
+                                  arguments: del,
+                                );
+                              }
+                            } finally {
+                              _accepting = false;
                             }
                           },
                         );

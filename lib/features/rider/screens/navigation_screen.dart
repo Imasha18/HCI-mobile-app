@@ -36,6 +36,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
   @override
   void dispose() {
+    ref.read(locationProvider.notifier).stopLiveTracking();
     _pulseController.dispose();
     super.dispose();
   }
@@ -97,7 +98,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   Row(
                     children: [
                       Container(
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: RiderTheme.softShadow,
@@ -332,8 +333,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                         ),
                       ),
                       Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE3F2FD),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE3F2FD),
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(

@@ -6,6 +6,7 @@ const Complaint = require('../models/Complaint');
 const Notification = require('../models/Notification');
 const Earning = require('../models/Earning');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 // 1. Dashboard / Summary
 async function getAdminSummary(req, res) {
@@ -100,6 +101,14 @@ async function getUsers(req, res) {
   try {
     const { role } = req.query;
     const filter = role ? { role } : {};
+
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await User.countDocuments(filter);
+      const users = await User.find(filter).sort({ createdAt: -1 }).select('-password').skip(skip).limit(limit);
+      return sendSuccess(res, users, 'Success', 200, buildPaginationMeta(page, limit, total, users.length));
+    }
+
     const users = await User.find(filter).sort({ createdAt: -1 }).select('-password');
     return sendSuccess(res, users);
   } catch (error) {
@@ -109,7 +118,24 @@ async function getUsers(req, res) {
 
 async function getCustomers(req, res) {
   try {
-    const customers = await User.find({ role: 'customer' }).sort({ createdAt: -1 }).select('-password');
+    const filter = { role: 'customer' };
+
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await User.countDocuments(filter);
+      const customers = await User.find(filter).sort({ createdAt: -1 }).select('-password').skip(skip).limit(limit);
+      const customersWithOrders = await Promise.all(
+        customers.map(async (c) => {
+          const orderCount = await Order.countDocuments({ customer: c._id });
+          const userObj = c.toObject();
+          userObj.orderCount = orderCount;
+          return userObj;
+        })
+      );
+      return sendSuccess(res, customersWithOrders, 'Success', 200, buildPaginationMeta(page, limit, total, customers.length));
+    }
+
+    const customers = await User.find(filter).sort({ createdAt: -1 }).select('-password');
     
     // Add order counts for each customer
     const customersWithOrders = await Promise.all(
@@ -128,7 +154,16 @@ async function getCustomers(req, res) {
 
 async function getCooks(req, res) {
   try {
-    const cooks = await User.find({ role: 'cook' }).sort({ createdAt: -1 }).select('-password');
+    const filter = { role: 'cook' };
+
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await User.countDocuments(filter);
+      const cooks = await User.find(filter).sort({ createdAt: -1 }).select('-password').skip(skip).limit(limit);
+      return sendSuccess(res, cooks, 'Success', 200, buildPaginationMeta(page, limit, total, cooks.length));
+    }
+
+    const cooks = await User.find(filter).sort({ createdAt: -1 }).select('-password');
     return sendSuccess(res, cooks);
   } catch (error) {
     return sendError(res, error.message);
@@ -137,7 +172,16 @@ async function getCooks(req, res) {
 
 async function getRiders(req, res) {
   try {
-    const riders = await User.find({ role: 'rider' }).sort({ createdAt: -1 }).select('-password');
+    const filter = { role: 'rider' };
+
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await User.countDocuments(filter);
+      const riders = await User.find(filter).sort({ createdAt: -1 }).select('-password').skip(skip).limit(limit);
+      return sendSuccess(res, riders, 'Success', 200, buildPaginationMeta(page, limit, total, riders.length));
+    }
+
+    const riders = await User.find(filter).sort({ createdAt: -1 }).select('-password');
     return sendSuccess(res, riders);
   } catch (error) {
     return sendError(res, error.message);
@@ -245,6 +289,12 @@ async function verifyRider(req, res) {
 // 4. Meal Monitoring
 async function getMeals(req, res) {
   try {
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await Meal.countDocuments();
+      const meals = await Meal.find().populate('cook', 'name kitchenName email phone address').sort({ createdAt: -1 }).skip(skip).limit(limit);
+      return sendSuccess(res, meals, 'Success', 200, buildPaginationMeta(page, limit, total, meals.length));
+    }
     const meals = await Meal.find().populate('cook', 'name kitchenName email phone address').sort({ createdAt: -1 });
     return sendSuccess(res, meals);
   } catch (error) {
@@ -266,6 +316,18 @@ async function deleteMeal(req, res) {
 // 5. Order Monitoring
 async function getOrders(req, res) {
   try {
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await Order.countDocuments();
+      const orders = await Order.find()
+        .populate('customer', 'name email phone address')
+        .populate('cook', 'name kitchenName phone address')
+        .populate('rider', 'name phone vehicleDetails')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+      return sendSuccess(res, orders, 'Success', 200, buildPaginationMeta(page, limit, total, orders.length));
+    }
     const orders = await Order.find()
       .populate('customer', 'name email phone address')
       .populate('cook', 'name kitchenName phone address')
@@ -280,6 +342,23 @@ async function getOrders(req, res) {
 // 6. Complaint Management
 async function getComplaints(req, res) {
   try {
+    if (req.query.page || req.query.limit) {
+      const { page, limit, skip } = parsePagination(req.query, 15);
+      const total = await Complaint.countDocuments();
+      const complaints = await Complaint.find()
+        .populate('user', 'name email role phone')
+        .populate({
+          path: 'order',
+          populate: [
+            { path: 'customer', select: 'name email' },
+            { path: 'cook', select: 'name kitchenName' },
+          ],
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+      return sendSuccess(res, complaints, 'Success', 200, buildPaginationMeta(page, limit, total, complaints.length));
+    }
     const complaints = await Complaint.find()
       .populate('user', 'name email role phone')
       .populate({
