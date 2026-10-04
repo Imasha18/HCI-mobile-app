@@ -14,6 +14,13 @@ const environment = {
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   gmailUser: process.env.GMAIL_USER || '',
   gmailAppPassword: process.env.GMAIL_APP_PASSWORD || '',
+  emailFrom: process.env.EMAIL_FROM || '',
+  replyToEmail: process.env.REPLY_TO_EMAIL || 'noreply@homebite.com',
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE === 'true',
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
   verificationUrlMinutes: Number(process.env.VERIFICATION_URL_MINUTES || 15),
 };
 
