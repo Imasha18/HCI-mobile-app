@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../../models/user_model.dart';
 import '../../../services/api_client.dart';
+import '../../../services/auth_service.dart';
 
 final customerProvider = NotifierProvider<CustomerNotifier, CustomerState>(
   CustomerNotifier.new,
@@ -141,42 +143,31 @@ class CustomerNotifier extends Notifier<CustomerState> {
     state = const CustomerState();
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<UserModel?> login(String email, String password) async {
     if (email.trim().isEmpty || password.trim().isEmpty) {
       state = const CustomerState(error: 'Email and password are required.');
-      return false;
+      return null;
     }
     if (password.trim().length < 6) {
       state = const CustomerState(
         error: 'Password must be at least 6 characters.',
       );
-      return false;
+      return null;
     }
     state = const CustomerState(isLoading: true);
     try {
-      final response = await ApiClient().dio.post(
-        '/auth/login',
-        data: {'email': email.trim(), 'password': password},
-      );
-      final payload = response.data['data'] as Map<String, dynamic>;
-      final user = payload['user'] as Map<String, dynamic>;
-      if (user['role'] != 'customer') {
-        state = const CustomerState(error: 'This login is for customers only.');
-        return false;
-      }
-      final token = payload['token'] as String;
-      await _storage.write(
-        key: 'auth_token',
-        value: token,
-      );
-      ApiClient().updateAuthToken(token);
-      state = CustomerState(user: user);
-      return true;
+      final authResponse = await AuthService().login(email, password);
+      final user = authResponse.user;
+      state = CustomerState(user: user.toJson());
+      return user;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
       ApiClient().clearCache();
       state = CustomerState(error: ApiClient.messageFrom(error));
-      return false;
+      return null;
+    } catch (error) {
+      state = CustomerState(error: error.toString());
+      return null;
     }
   }
 
