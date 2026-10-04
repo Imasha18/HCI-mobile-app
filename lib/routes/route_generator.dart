@@ -35,6 +35,10 @@ import '../features/cook/screens/cook_profile_screen.dart' as cook;
 import '../features/cook/screens/cook_notifications_screen.dart';
 import '../features/rider/screens/rider_login_screen.dart';
 import '../features/rider/screens/rider_dashboard_screen.dart';
+import '../features/rider/screens/delivery_requests_screen.dart';
+import '../features/rider/screens/delivery_request_details_screen.dart';
+import '../features/rider/screens/accept_delivery_screen.dart';
+import '../features/rider/screens/pickup_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -47,6 +51,16 @@ class RouteGenerator {
       AppRoutes.cookDashboard => const CookDashboardScreen(),
       AppRoutes.riderLogin => const RiderLoginScreen(),
       AppRoutes.riderDashboard => const RiderDashboardScreen(),
+      AppRoutes.deliveryRequests => const DeliveryRequestsScreen(),
+      AppRoutes.deliveryRequestDetails => DeliveryRequestDetailsScreen(
+          deliveryId: settings.arguments as String? ?? '',
+        ),
+      AppRoutes.acceptDelivery => AcceptDeliveryScreen(
+          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+        ),
+      AppRoutes.riderPickup => PickupScreen(
+          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+        ),
       AppRoutes.manageMenu => const ManageMenuScreen(),
       AppRoutes.addMeal => const AddMealScreen(),
       AppRoutes.editMeal => EditMealScreen(
