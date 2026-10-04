@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../config/app_routes.dart';
 import '../../../config/constants.dart';
 import '../../../services/api_client.dart';
+import '../../admin/services/admin_session_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -40,6 +41,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
         switch (role) {
           case 'admin':
+            final isExpired = await AdminSessionManager().isSessionExpired();
+            if (isExpired) {
+              await AdminSessionManager().handleTimeout();
+              return;
+            }
+            await AdminSessionManager().startSession();
+            if (!mounted) return;
             Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
             break;
           case 'cook':
