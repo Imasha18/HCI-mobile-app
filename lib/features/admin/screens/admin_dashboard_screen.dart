@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
 import '../providers/admin_provider.dart';
+import '../services/admin_session_manager.dart';
 import '../theme/admin_theme.dart';
 import 'admin_profile_screen.dart';
 import 'order_monitoring_screen.dart';
@@ -22,6 +23,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    AdminSessionManager().startSession();
     Future.microtask(() => ref.read(adminProvider.notifier).fetchDashboard());
   }
 
@@ -53,7 +55,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           setState(() => _currentNavIndex = 0);
         }
       },
-      child: Scaffold(
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => AdminSessionManager().recordActivity(),
+        child: Scaffold(
         backgroundColor: Colors.white,
         appBar: _currentNavIndex == 0
             ? AppBar(
@@ -131,7 +136,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     onPressed: () async {
                       await ref.read(adminProvider.notifier).logout();
                       if (context.mounted) {
-                        Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          AppRoutes.login,
+                          (route) => false,
+                        );
                       }
                     },
                   ),
@@ -573,6 +582,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
     ],
   ),
+),
 ),
 );
   }
