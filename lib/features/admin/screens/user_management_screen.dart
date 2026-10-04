@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/user_management_provider.dart';
 import '../theme/admin_theme.dart';
 
@@ -22,7 +23,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -233,10 +238,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AdminTheme.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AdminTheme.textPrimary, size: 20),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: const Text(
           'User Management',
           style: TextStyle(color: AdminTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
@@ -244,7 +251,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AdminTheme.textPrimary),
-            onPressed: () => ref.read(userManagementProvider.notifier).loadAllUsers(),
+            onPressed: () => ref.read(userManagementProvider.notifier).loadAllUsers(forceRefresh: true),
           ),
         ],
         bottom: PreferredSize(
@@ -289,19 +296,27 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
             ),
           ),
           Expanded(
-            child: state.isLoading && state.users.isEmpty
-                ? const Center(child: CircularProgressIndicator(color: AdminTheme.primary))
-                : filteredUsers.isEmpty
-                    ? Center(
-                        child: Text(
-                          _searchQuery.isNotEmpty ? 'No users matching "$_searchQuery"' : 'No users found in this section',
-                          style: const TextStyle(color: AdminTheme.textSecondary, fontSize: 14),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filteredUsers.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+            child: RefreshIndicator(
+              color: AdminTheme.primary,
+              onRefresh: () => ref.read(userManagementProvider.notifier).loadAllUsers(forceRefresh: true),
+              child: state.isLoading && state.users.isEmpty
+                  ? ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 6,
+                      itemBuilder: (context, index) => const UserCardSkeleton(),
+                    )
+                  : filteredUsers.isEmpty
+                      ? Center(
+                          child: Text(
+                            _searchQuery.isNotEmpty ? 'No users matching "$_searchQuery"' : 'No users found in this section',
+                            style: const TextStyle(color: AdminTheme.textSecondary, fontSize: 14),
+                          ),
+                        )
+                      : ListView.separated(
+                          key: const PageStorageKey<String>('admin_users_scroll'),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredUsers.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final user = filteredUsers[index];
                           final id = user['_id'] as String? ?? user['id'] as String? ?? '';
@@ -414,7 +429,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
                                       child: Row(
                                         children: [
                                           Icon(isBlocked ? Icons.check_circle_outline : Icons.block, size: 18),
-                                          SizedBox(width: 8),
+                                          const SizedBox(width: 8),
                                           Text(isBlocked ? 'Unblock User' : 'Block User'),
                                         ],
                                       ),
@@ -436,6 +451,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

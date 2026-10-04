@@ -33,4 +33,9 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String, unique: true, sparse: true },
 }, { timestamps: true });
 
+userSchema.index({ role: 1 });
+userSchema.index({ verificationStatus: 1 });
+userSchema.index({ isBlocked: 1 });
+userSchema.index({ role: 1, isBlocked: 1 });
+
 module.exports = mongoose.model('User', userSchema);

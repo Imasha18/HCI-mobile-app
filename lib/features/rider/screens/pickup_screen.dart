@@ -104,10 +104,10 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 24,
-                      backgroundColor: const Color(0xFFFFF3E0),
-                      child: const Icon(Icons.soup_kitchen_rounded, color: Color(0xFFFF9800), size: 26),
+                      backgroundColor: Color(0xFFFFF3E0),
+                      child: Icon(Icons.soup_kitchen_rounded, color: Color(0xFFFF9800), size: 26),
                     ),
                     const SizedBox(width: 14),
                     Expanded(

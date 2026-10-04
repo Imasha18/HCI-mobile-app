@@ -37,4 +37,9 @@ orderSchema.virtual('cookId')
   .get(function() { return this.cook; })
   .set(function(v) { this.cook = v; });
 
+orderSchema.index({ customer: 1, createdAt: -1 });
+orderSchema.index({ cook: 1, createdAt: -1 });
+orderSchema.index({ rider: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Order', orderSchema);

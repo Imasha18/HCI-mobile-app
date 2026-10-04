@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/app_cached_image.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/order_management_provider.dart';
 import '../theme/admin_theme.dart';
 
@@ -76,44 +78,46 @@ class _MealManagementScreenState extends ConsumerState<MealManagementScreen> {
             ),
           ),
           Expanded(
-            child: meals.isEmpty
-                ? const Center(
-                    child: Text('No meals found in system', style: TextStyle(color: AdminTheme.textSecondary)),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: meals.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final meal = meals[index];
-                      final id = meal['_id'] as String? ?? meal['id'] as String? ?? '';
-                      final isAvailable = meal['available'] as bool? ?? true;
-                      final cook = meal['cook'] as Map? ?? {};
-                      final price = meal['price'] ?? 0;
-                      final imageUrl = meal['imageUrl'] as String? ?? meal['image'] as String? ?? '';
+            child: RefreshIndicator(
+              color: AdminTheme.primary,
+              onRefresh: () => ref.read(orderManagementProvider.notifier).loadMeals(),
+              child: state.isLoading && state.meals.isEmpty
+                  ? ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 5,
+                      itemBuilder: (context, index) => const MealTileSkeleton(),
+                    )
+                  : meals.isEmpty
+                      ? const Center(
+                          child: Text('No meals found in system', style: TextStyle(color: AdminTheme.textSecondary)),
+                        )
+                      : ListView.separated(
+                          key: const PageStorageKey<String>('admin_meals_scroll'),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: meals.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final meal = meals[index];
+                            final id = meal['_id'] as String? ?? meal['id'] as String? ?? '';
+                            final isAvailable = meal['available'] as bool? ?? true;
+                            final cook = meal['cook'] as Map? ?? {};
+                            final price = meal['price'] ?? 0;
+                            final imageUrl = meal['imageUrl'] as String? ?? meal['image'] as String? ?? '';
 
-                      return Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: AdminTheme.cardDecoration(),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                width: 75,
-                                height: 75,
-                                color: AdminTheme.surface,
-                                child: imageUrl.isNotEmpty
-                                    ? Image.network(
-                                        imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, color: AdminTheme.primary, size: 30),
-                                      )
-                                    : const Icon(Icons.fastfood, color: AdminTheme.primary, size: 30),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: AdminTheme.cardDecoration(),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  AppCachedImage(
+                                    imageUrl: imageUrl,
+                                    width: 75,
+                                    height: 75,
+                                    borderRadius: 12,
+                                    fallbackIcon: Icons.fastfood,
+                                  ),
+                                  const SizedBox(width: 14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,6 +195,7 @@ class _MealManagementScreenState extends ConsumerState<MealManagementScreen> {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

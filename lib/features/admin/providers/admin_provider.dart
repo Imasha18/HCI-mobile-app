@@ -97,9 +97,12 @@ class AdminNotifier extends StateNotifier<AdminState> {
     }
   }
 
-  Future<void> fetchDashboard() async {
+  Future<void> fetchDashboard({bool forceRefresh = false}) async {
     try {
-      final response = await _client.dio.get('/admin/dashboard');
+      final response = await _client.getCached(
+        '/admin/dashboard',
+        forceRefresh: forceRefresh,
+      );
       if (response.data['success'] == true) {
         state = state.copyWith(
           dashboardData: response.data['data'] as Map<String, dynamic>,

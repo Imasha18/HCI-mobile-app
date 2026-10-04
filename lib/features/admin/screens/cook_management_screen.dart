@@ -56,10 +56,10 @@ class _CookManagementScreenState extends ConsumerState<CookManagementScreen> {
             const SizedBox(height: 18),
             Row(
               children: [
-                CircleAvatar(
+                const CircleAvatar(
                   radius: 26,
                   backgroundColor: AdminTheme.primaryLight,
-                  child: const Icon(Icons.restaurant_menu, color: AdminTheme.primary, size: 28),
+                  child: Icon(Icons.restaurant_menu, color: AdminTheme.primary, size: 28),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -288,10 +288,10 @@ class _CookManagementScreenState extends ConsumerState<CookManagementScreen> {
                               decoration: AdminTheme.cardDecoration(),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
+                                  const CircleAvatar(
                                     radius: 24,
-                                    backgroundColor: const Color(0xFFFFE0B2),
-                                    child: const Icon(Icons.restaurant_rounded, color: Color(0xFFE65100), size: 24),
+                                    backgroundColor: Color(0xFFFFE0B2),
+                                    child: Icon(Icons.restaurant_rounded, color: Color(0xFFE65100), size: 24),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(

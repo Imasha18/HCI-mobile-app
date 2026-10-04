@@ -1,9 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
 import '../providers/rider_provider.dart';
 import '../theme/rider_theme.dart';
+import 'delivery_requests_screen.dart';
+import 'rider_earnings_screen.dart';
+import 'rider_profile_screen.dart';
 
 class RiderDashboardScreen extends ConsumerStatefulWidget {
   const RiderDashboardScreen({super.key});
@@ -26,13 +30,6 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
   void _onBottomNavTapped(int index) {
     if (index == _currentNavIndex) return;
     setState(() => _currentNavIndex = index);
-    if (index == 1) {
-      Navigator.pushNamed(context, AppRoutes.deliveryRequests);
-    } else if (index == 2) {
-      Navigator.pushNamed(context, AppRoutes.riderEarnings);
-    } else if (index == 3) {
-      Navigator.pushNamed(context, AppRoutes.riderProfile);
-    }
   }
 
   @override
@@ -55,38 +52,51 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
     final rating = (statistics?['rating'] ?? riderInfo?['rating'] ?? state.rider?['rating'] ?? 5.0).toString();
     final distanceTravelled = '${((statistics?['distanceTravelled'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(1)} km';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FBF9),
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: RiderTheme.primaryGreen,
-          onRefresh: () => ref.read(riderProvider.notifier).fetchDashboard(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Green Header Section
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                  decoration: const BoxDecoration(
-                    color: RiderTheme.primaryGreen,
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(28),
-                      bottomRight: Radius.circular(28),
-                    ),
+    return PopScope(
+      canPop: _currentNavIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentNavIndex != 0) {
+          setState(() => _currentNavIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FBF9),
+        body: IndexedStack(
+          index: _currentNavIndex,
+          children: [
+            SafeArea(
+              child: RefreshIndicator(
+                color: RiderTheme.primaryGreen,
+                onRefresh: () => ref.read(riderProvider.notifier).fetchDashboard(forceRefresh: true),
+                child: SingleChildScrollView(
+                  key: const PageStorageKey<String>('rider_dashboard_scroll'),
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Top Row: Profile info & Notifications
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 26,
-                            backgroundColor: Colors.white,
-                            backgroundImage: profileImage != null && profileImage.isNotEmpty
-                                ? NetworkImage(profileImage)
-                                : null,
+                      // Top Green Header Section
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                        decoration: const BoxDecoration(
+                          color: RiderTheme.primaryGreen,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(28),
+                            bottomRight: Radius.circular(28),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // Top Row: Profile info & Notifications
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 26,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: profileImage != null && profileImage.isNotEmpty
+                                      ? CachedNetworkImageProvider(profileImage)
+                                      : null,
                             child: profileImage == null || profileImage.isEmpty
                                 ? const Icon(Icons.person, color: RiderTheme.primaryGreen, size: 28)
                                 : null,
@@ -401,36 +411,42 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        backgroundColor: Colors.white,
-        elevation: 6,
-        indicatorColor: RiderTheme.secondaryGreen,
-        onDestinationSelected: _onBottomNavTapped,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded, color: RiderTheme.primaryDark),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.delivery_dining_outlined),
-            selectedIcon: Icon(Icons.delivery_dining_rounded, color: RiderTheme.primaryDark),
-            label: 'Deliveries',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: RiderTheme.primaryDark),
-            label: 'Earnings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded, color: RiderTheme.primaryDark),
-            label: 'Profile',
-          ),
-        ],
+      const DeliveryRequestsScreen(),
+      const RiderEarningsScreen(),
+      const RiderProfileScreen(),
+    ],
+  ),
+  bottomNavigationBar: NavigationBar(
+    selectedIndex: _currentNavIndex,
+    backgroundColor: Colors.white,
+    elevation: 6,
+    indicatorColor: RiderTheme.secondaryGreen,
+    onDestinationSelected: _onBottomNavTapped,
+    destinations: const [
+      NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home_rounded, color: RiderTheme.primaryDark),
+        label: 'Home',
       ),
-    );
+      NavigationDestination(
+        icon: Icon(Icons.delivery_dining_outlined),
+        selectedIcon: Icon(Icons.delivery_dining_rounded, color: RiderTheme.primaryDark),
+        label: 'Deliveries',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.account_balance_wallet_outlined),
+        selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: RiderTheme.primaryDark),
+        label: 'Earnings',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.person_outline_rounded),
+        selectedIcon: Icon(Icons.person_rounded, color: RiderTheme.primaryDark),
+        label: 'Profile',
+      ),
+    ],
+  ),
+),
+);
   }
 }
 

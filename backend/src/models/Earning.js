@@ -9,4 +9,7 @@ const earningSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+earningSchema.index({ cookId: 1, date: -1 });
+earningSchema.index({ riderId: 1, date: -1 });
+
 module.exports = mongoose.model('Earning', earningSchema);
