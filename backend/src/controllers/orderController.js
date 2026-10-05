@@ -55,7 +55,26 @@ async function createOrder(req, res) {
     User.findById(req.user.id),
   ]);
 
-  const deliveryAddress = req.body.deliveryAddress || customerUser?.address || '18 Flower Road, Colombo 07, Sri Lanka';
+  const rawDelivery = req.body.deliveryAddress;
+  let deliveryAddressObj = {};
+  if (typeof rawDelivery === 'string') {
+    deliveryAddressObj = {
+      address: rawDelivery.trim(),
+      phone: (req.body.deliveryPhone || req.body.phone || customerUser?.phone || '').trim(),
+    };
+  } else if (rawDelivery && typeof rawDelivery === 'object') {
+    deliveryAddressObj = {
+      address: (rawDelivery.address || customerUser?.address || '18 Flower Road, Colombo 07, Sri Lanka').trim(),
+      phone: (rawDelivery.phone || req.body.deliveryPhone || req.body.phone || customerUser?.phone || '').trim(),
+    };
+  } else {
+    deliveryAddressObj = {
+      address: (req.body.address || customerUser?.address || '18 Flower Road, Colombo 07, Sri Lanka').trim(),
+      phone: (req.body.deliveryPhone || req.body.phone || customerUser?.phone || '').trim(),
+    };
+  }
+
+  const deliveryAddressString = deliveryAddressObj.address || '18 Flower Road, Colombo 07, Sri Lanka';
   const pickupAddress = cookUser?.address || '45/2 Galle Road, Colombo 03, Sri Lanka';
 
   const order = await Order.create({
@@ -64,9 +83,20 @@ async function createOrder(req, res) {
     cook: cookId,
     items,
     total,
-    deliveryAddress,
+    deliveryAddress: deliveryAddressObj,
+    deliveryPhone: deliveryAddressObj.phone,
+    paymentMethod: req.body.paymentMethod || 'Cash on Delivery',
     status: 'Order Received',
   });
+
+  if (req.body.saveAsDefault && customerUser) {
+    const profileUpdates = {};
+    if (deliveryAddressObj.address) profileUpdates.address = deliveryAddressObj.address;
+    if (deliveryAddressObj.phone) profileUpdates.phone = deliveryAddressObj.phone;
+    if (Object.keys(profileUpdates).length > 0) {
+      await User.findByIdAndUpdate(req.user.id, profileUpdates);
+    }
+  }
 
   await Cart.deleteOne({ customer: req.user.id });
 
@@ -82,7 +112,7 @@ async function createOrder(req, res) {
       longitude: cookUser?.longitude || 79.8546,
     },
     deliveryLocation: {
-      address: deliveryAddress,
+      address: deliveryAddressString,
       latitude: customerUser?.latitude || 6.9128,
       longitude: customerUser?.longitude || 79.8653,
     },

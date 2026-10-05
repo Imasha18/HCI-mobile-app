@@ -12,8 +12,10 @@ const orderSchema = new mongoose.Schema({
   }],
   total: { type: Number, required: true, min: 0 },
   paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  paymentMethod: { type: String, default: 'Cash on Delivery' },
   status: { type: String, default: 'Order Received' },
-  deliveryAddress: String,
+  deliveryAddress: { type: mongoose.Schema.Types.Mixed },
+  deliveryPhone: { type: String, trim: true },
   orderNotes: String,
 }, {
   timestamps: true,

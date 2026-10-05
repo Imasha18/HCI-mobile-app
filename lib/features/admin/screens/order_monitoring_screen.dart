@@ -65,8 +65,27 @@ class _OrderMonitoringScreenState extends ConsumerState<OrderMonitoringScreen> w
     final rider = order['rider'] as Map? ?? {};
     final items = (order['items'] as List?) ?? [];
     final total = order['total'] ?? 0;
-    final status = order['status'] ?? 'Order Received';
-    final address = order['deliveryAddress'] ?? 'Colombo 07, Sri Lanka';
+    final status = (order['status'] as String?) ?? 'Order Received';
+    final paymentMethod = (order['paymentMethod'] as String?) ?? 'Cash on Delivery';
+
+    String deliveryAddr = '';
+    String deliveryPhone = '';
+    if (order['deliveryAddress'] is Map) {
+      final da = order['deliveryAddress'] as Map;
+      deliveryAddr = (da['address'] as String?) ?? '';
+      deliveryPhone = (da['phone'] as String?) ?? '';
+    } else if (order['deliveryAddress'] is String) {
+      deliveryAddr = order['deliveryAddress'] as String;
+    }
+    if (deliveryPhone.isEmpty && order['deliveryPhone'] != null) {
+      deliveryPhone = order['deliveryPhone'].toString();
+    }
+    if (deliveryPhone.isEmpty) {
+      deliveryPhone = (customer['phone'] as String?) ?? 'Not provided';
+    }
+    if (deliveryAddr.isEmpty) {
+      deliveryAddr = (customer['address'] as String?) ?? 'Not provided';
+    }
 
     showModalBottomSheet(
       context: context,
@@ -114,8 +133,10 @@ class _OrderMonitoringScreenState extends ConsumerState<OrderMonitoringScreen> w
               const Divider(height: 24),
               _sectionHeader('Customer & Delivery'),
               _infoRow('Customer Name', customer['name'] ?? 'HomeBite Customer'),
-              _infoRow('Phone', customer['phone'] ?? '+94 71 890 1234'),
-              _infoRow('Address', address),
+              _infoRow('Phone Number', deliveryPhone),
+              _infoRow('Delivery Address', deliveryAddr),
+              _infoRow('Payment Method', paymentMethod),
+              _infoRow('Order Status', status),
               const SizedBox(height: 14),
               _sectionHeader('Supplier & Fulfillment'),
               _infoRow('Kitchen', cook['kitchenName'] ?? cook['name'] ?? 'Home Kitchen'),
