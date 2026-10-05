@@ -41,7 +41,7 @@ async function register(req, res) {
     return registerRider(req, res);
   }
 
-  const { name, email, password } = req.body;
+  const { name, email, password, phone, address } = req.body;
   const existing = await User.findOne({ email: email.trim().toLowerCase() });
   if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
   const hashedPassword = await bcrypt.hash(password, 12);
@@ -51,6 +51,8 @@ async function register(req, res) {
     name: name.trim(),
     email: email.trim().toLowerCase(),
     password: hashedPassword,
+    phone: phone?.trim(),
+    address: address?.trim(),
     role: 'customer',
     emailVerified: false,
     verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'),
@@ -200,7 +202,31 @@ async function resetPassword(req, res) {
 
 async function me(req, res) {
   const user = await User.findById(req.user.id).select('-password');
-  return sendSuccess(res, user);
+  return sendSuccess(res, user ? publicUser(user) : null);
 }
 
-module.exports = { register, registerCook, registerRider, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me };
+async function updateMe(req, res) {
+  const { name, phone, address, profileImage } = req.body;
+  const updates = {};
+  if (name && typeof name === 'string' && name.trim().length >= 2) updates.name = name.trim();
+  if (phone !== undefined) {
+    const { isValidPhone } = require('../validators/authValidator');
+    if (phone && !isValidPhone(phone)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid Sri Lankan phone number (e.g. 077 123 4567)' });
+    }
+    updates.phone = phone.trim();
+  }
+  if (address !== undefined) {
+    if (address && address.trim().length < 5) {
+      return res.status(400).json({ success: false, message: 'Please enter a complete delivery address' });
+    }
+    updates.address = address.trim();
+  }
+  if (profileImage !== undefined) updates.profileImage = profileImage;
+
+  const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  return sendSuccess(res, publicUser(user), 'Profile updated successfully');
+}
+
+module.exports = { register, registerCook, registerRider, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me, updateMe, publicUser };
