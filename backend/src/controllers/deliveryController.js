@@ -250,11 +250,154 @@ async function completeDelivery(req, res) {
   return sendSuccess(res, populated || delivery, 'Delivery confirmed and completed');
 }
 
+// POST /api/deliveries (Create delivery request)
+async function createDelivery(req, res) {
+  const {
+    orderId,
+    cookId,
+    customerId,
+    pickupLocation,
+    deliveryLocation,
+    deliveryFee,
+    distanceKm,
+    estimatedMinutes,
+    notes,
+  } = req.body;
+
+  const newDelivery = await Delivery.create({
+    orderId: orderId || null,
+    order: orderId || null,
+    cookId: cookId || null,
+    customerId: customerId || req.user.id,
+    pickupLocation: pickupLocation || {
+      address: '45/2 Galle Road, Colombo 03, Sri Lanka',
+      latitude: 6.9034,
+      longitude: 79.8546,
+    },
+    deliveryLocation: deliveryLocation || {
+      address: '18 Flower Road, Colombo 07, Sri Lanka',
+      latitude: 6.9128,
+      longitude: 79.8653,
+    },
+    deliveryFee: Number(deliveryFee) || 350.0,
+    distanceKm: Number(distanceKm) || 3.8,
+    estimatedMinutes: Number(estimatedMinutes) || 20,
+    notes: notes || '',
+    status: 'AVAILABLE',
+  });
+
+  const populated = await Delivery.findById(newDelivery._id)
+    .populate('orderId')
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address');
+
+  return res.status(201).json({
+    success: true,
+    data: populated,
+    message: 'Delivery request created successfully',
+  });
+}
+
+// GET /api/deliveries (List deliveries with optional query filter)
+async function listDeliveries(req, res) {
+  const filter = {};
+  if (req.query.status) filter.status = req.query.status;
+  if (req.query.riderId || req.query.rider) filter.rider = req.query.riderId || req.query.rider;
+  if (req.query.cookId) filter.cookId = req.query.cookId;
+  if (req.query.customerId) filter.customerId = req.query.customerId;
+
+  const deliveries = await Delivery.find(filter)
+    .sort({ createdAt: -1 })
+    .populate('orderId')
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address')
+    .populate('riderId', 'name phone vehicleDetails rating profileImage');
+
+  return sendSuccess(res, deliveries);
+}
+
+// PUT /api/deliveries/:id (Full update of delivery)
+async function updateDelivery(req, res) {
+  const allowed = [
+    'pickupLocation',
+    'deliveryLocation',
+    'deliveryFee',
+    'distanceKm',
+    'estimatedMinutes',
+    'status',
+    'notes',
+    'proofImageUrl',
+  ];
+
+  const updateData = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      updateData[key] = req.body[key];
+    }
+  }
+
+  const updated = await Delivery.findByIdAndUpdate(req.params.id, updateData, { new: true })
+    .populate('orderId')
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address')
+    .populate('riderId', 'name phone vehicleDetails rating profileImage');
+
+  if (!updated) {
+    return res.status(404).json({ success: false, message: 'Delivery not found' });
+  }
+
+  return sendSuccess(res, updated, 'Delivery updated successfully');
+}
+
+// PATCH /api/deliveries/:id/cancel
+async function cancelDelivery(req, res) {
+  const delivery = await Delivery.findById(req.params.id);
+  if (!delivery) {
+    return res.status(404).json({ success: false, message: 'Delivery not found' });
+  }
+
+  delivery.status = 'CANCELLED';
+  if (req.body.reason) {
+    delivery.cancellationReason = req.body.reason;
+  }
+  await delivery.save();
+
+  if (delivery.customerId) {
+    await Notification.create({
+      user: delivery.customerId,
+      title: 'Delivery Cancelled',
+      body: req.body.reason || 'Your delivery has been cancelled.',
+    });
+  }
+
+  const populated = await Delivery.findById(delivery._id)
+    .populate('orderId')
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address');
+
+  return sendSuccess(res, populated, 'Delivery cancelled successfully');
+}
+
+// DELETE /api/deliveries/:id
+async function deleteDelivery(req, res) {
+  const delivery = await Delivery.findByIdAndDelete(req.params.id);
+  if (!delivery) {
+    return res.status(404).json({ success: false, message: 'Delivery not found' });
+  }
+
+  return sendSuccess(res, {}, 'Delivery deleted successfully');
+}
+
 module.exports = {
+  createDelivery,
+  listDeliveries,
   getAvailableDeliveries,
   getDeliveryById,
   acceptDelivery,
   pickupDelivery,
   startDelivery,
   completeDelivery,
+  updateDelivery,
+  cancelDelivery,
+  deleteDelivery,
 };

@@ -28,6 +28,8 @@ const deliverySchema = new mongoose.Schema({
   pickedUpAt: Date,
   deliveredAt: Date,
   proofImageUrl: String,
+  notes: String,
+  cancellationReason: String,
 }, { timestamps: true });
 
 deliverySchema.pre('save', function (next) {
