@@ -18,6 +18,14 @@ const userSchema = new mongoose.Schema({
     plateNumber: { type: String, default: 'WP BZ-4892' },
   },
   emailVerified: { type: Boolean, default: false },
+  isBlocked: { type: Boolean, default: false },
+  verificationStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+  verificationDocuments: [{
+    title: { type: String, default: 'National ID / Driving License' },
+    documentUrl: { type: String, default: '' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    uploadedAt: { type: Date, default: Date.now }
+  }],
   verificationCodeHash: { type: String, select: false },
   verificationExpiresAt: { type: Date, select: false },
   resetCodeHash: { type: String, select: false },
