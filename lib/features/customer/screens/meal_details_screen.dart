@@ -8,8 +8,13 @@ import '../providers/cart_provider.dart';
 import '../providers/meal_provider.dart';
 
 class MealDetailsScreen extends ConsumerWidget {
-  const MealDetailsScreen({super.key, required this.mealId});
+  const MealDetailsScreen({
+    super.key,
+    required this.mealId,
+    this.recommendationReasons,
+  });
   final String mealId;
+  final List<String>? recommendationReasons;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,6 +45,63 @@ class MealDetailsScreen extends ConsumerWidget {
                 context,
               ).textTheme.titleLarge?.copyWith(color: const Color(0xFFFF7A00)),
             ),
+            if (recommendationReasons != null &&
+                recommendationReasons!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8F0),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFFE0B2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.auto_awesome,
+                            color: Color(0xFFFF7A00), size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Why this was recommended for you',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Color(0xFF1E1E1E),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ...recommendationReasons!.map(
+                      (reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline,
+                              color: Color(0xFF2E7D32),
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF333333),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Text(meal.description ?? 'Made fresh by a local HomeBite cook.'),
             const SizedBox(height: 18),

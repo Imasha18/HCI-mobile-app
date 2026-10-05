@@ -14,4 +14,20 @@ function authenticate(req, res, next) {
   }
 }
 
-module.exports = { authenticate, protect: authenticate };
+function optionalAuthenticate(req, res, next) {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : null;
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+  try {
+    req.user = jwt.verify(token, environment.jwtSecret);
+  } catch (error) {
+    req.user = null;
+  }
+  return next();
+}
+
+module.exports = { authenticate, protect: authenticate, optionalAuthenticate };
