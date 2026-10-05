@@ -31,6 +31,26 @@ const userSchema = new mongoose.Schema({
   resetCodeHash: { type: String, select: false },
   resetExpiresAt: { type: Date, select: false },
   googleId: { type: String, unique: true, sparse: true },
+  preferences: {
+    dietaryPreference: {
+      type: String,
+      enum: ['vegetarian', 'vegan', 'non_vegetarian', 'pescatarian', 'no_preference'],
+      default: 'no_preference',
+    },
+    favouriteCuisines: [{ type: String }],
+    maxBudget: { type: Number },
+    budgetPreference: {
+      type: String,
+      enum: ['under_500', '500_800', '800_1200', '1200_plus', 'no_preference'],
+      default: 'no_preference',
+    },
+    spicePreference: {
+      type: String,
+      enum: ['mild', 'medium', 'spicy', 'no_preference'],
+      default: 'no_preference',
+    },
+    onboardingCompleted: { type: Boolean, default: false },
+  },
 }, { timestamps: true });
 
 userSchema.index({ role: 1 });

@@ -9,8 +9,13 @@ const mealSchema = new mongoose.Schema({
   imageUrl: String,
   ingredients: [String],
   dietaryInformation: [String],
+  dietaryTags: [String],
+  cuisine: { type: String, default: 'Sri Lankan', trim: true },
+  spiceLevel: { type: String, enum: ['mild', 'medium', 'spicy'], default: 'medium' },
   prepTimeMinutes: { type: Number, default: 25 },
   rating: { type: Number, min: 0, max: 5, default: 4.8 },
+  ratingCount: { type: Number, default: 0, min: 0 },
+  orderCount: { type: Number, default: 0, min: 0 },
   available: { type: Boolean, default: true },
 }, {
   timestamps: true,
@@ -19,7 +24,9 @@ const mealSchema = new mongoose.Schema({
 });
 
 mealSchema.virtual('cookId')
-  .get(function() { return this.cook; })
+  .get(function() {
+    return (this.cook && this.cook._id) ? this.cook._id : this.cook;
+  })
   .set(function(v) { this.cook = v; });
 
 mealSchema.virtual('image')
@@ -37,6 +44,9 @@ mealSchema.virtual('cookingTime')
 mealSchema.index({ cook: 1, available: 1 });
 mealSchema.index({ category: 1, available: 1 });
 mealSchema.index({ available: 1, createdAt: -1 });
+mealSchema.index({ available: 1, rating: -1 });
+mealSchema.index({ cuisine: 1, available: 1 });
+mealSchema.index({ price: 1, available: 1 });
 mealSchema.index({ name: 'text', description: 'text', category: 'text' });
 
 module.exports = mongoose.model('Meal', mealSchema);
