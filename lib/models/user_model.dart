@@ -1,3 +1,5 @@
+import 'customer_preferences_model.dart';
+
 class UserModel {
   final String id;
   final String name;
@@ -8,6 +10,7 @@ class UserModel {
   final String? profileImage;
   final bool emailVerified;
   final bool isBlocked;
+  final CustomerPreferences? preferences;
 
   const UserModel({
     required this.id,
@@ -19,6 +22,7 @@ class UserModel {
     this.profileImage,
     this.emailVerified = false,
     this.isBlocked = false,
+    this.preferences,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,9 @@ class UserModel {
       profileImage: json['profileImage'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
       isBlocked: json['isBlocked'] as bool? ?? false,
+      preferences: json['preferences'] is Map<String, dynamic>
+          ? CustomerPreferences.fromJson(json['preferences'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -46,5 +53,6 @@ class UserModel {
     'profileImage': profileImage,
     'emailVerified': emailVerified,
     'isBlocked': isBlocked,
+    if (preferences != null) 'preferences': preferences!.toJson(),
   };
 }
