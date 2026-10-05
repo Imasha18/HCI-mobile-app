@@ -225,7 +225,50 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              color: const Color(0xFFFAF7F2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFFEFEAE3)),
+              ),
+              child: ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.restaurant_menu,
+                    color: Color(0xFFFF7A00),
+                  ),
+                ),
+                title: const Text(
+                  'Food Preferences',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Color(0xFF1E1E1E),
+                  ),
+                ),
+                subtitle: const Text(
+                  'Diet, favourite cuisines, spice & budget',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: Colors.grey,
+                ),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.foodPreferences),
+              ),
+            ),
+
+            const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.receipt_long),
               title: const Text('Order history'),

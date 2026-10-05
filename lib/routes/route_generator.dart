@@ -22,6 +22,7 @@ import '../features/customer/screens/tracking_screen.dart';
 import '../features/customer/screens/orders_screen.dart';
 import '../features/customer/screens/review_screen.dart';
 import '../features/customer/screens/customer_profile_screen.dart';
+import '../features/customer/screens/food_preferences_screen.dart';
 import '../features/customer/screens/notification_screen.dart';
 import '../features/cook/screens/cook_login_screen.dart';
 import '../features/cook/screens/cook_register_screen.dart';
@@ -143,7 +144,14 @@ class RouteGenerator {
       AppRoutes.cart => const CartScreen(),
       AppRoutes.search => const SearchScreen(),
       AppRoutes.mealDetails => MealDetailsScreen(
-        mealId: settings.arguments as String,
+        mealId: settings.arguments is Map
+            ? (settings.arguments as Map)['mealId']?.toString() ?? ''
+            : (settings.arguments?.toString() ?? ''),
+        recommendationReasons: settings.arguments is Map
+            ? ((settings.arguments as Map)['reasons'] as List?)
+                ?.map((e) => e.toString())
+                .toList()
+            : null,
       ),
       AppRoutes.cookProfile => CookProfileScreen(
         cookId: settings.arguments as String,
@@ -164,6 +172,7 @@ class RouteGenerator {
       AppRoutes.orders => const OrdersScreen(),
       AppRoutes.review => ReviewScreen(mealId: settings.arguments as String),
       AppRoutes.profile => const CustomerProfileScreen(),
+      AppRoutes.foodPreferences => const FoodPreferencesScreen(),
       AppRoutes.notifications => const NotificationScreen(),
       AppRoutes.adminLogin => const AdminLoginScreen(),
       AppRoutes.adminDashboard => const AdminDashboardScreen(),

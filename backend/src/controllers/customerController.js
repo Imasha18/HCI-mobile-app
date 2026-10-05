@@ -15,6 +15,7 @@ function publicUser(user) {
     rating: user.rating || 4.8,
     isOnline: user.isOnline ?? true,
     emailVerified: user.emailVerified,
+    preferences: user.preferences || {},
   };
 }
 

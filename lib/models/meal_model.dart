@@ -20,11 +20,18 @@ class MealModel {
         ? json['imageUrl'] as String
         : (json['image'] as String?),
     rating: (json['rating'] as num?)?.toDouble(),
-    cookId: (json['cook'] is Map ? json['cook']['_id'] : json['cook']) as String? ??
-        (json['cookId'] as String?),
-    cookName: json['cook'] is Map
-        ? (json['cook']['kitchenName'] as String? ?? json['cook']['name'] as String?)
-        : (json['cookName'] as String?),
+    cookId: (json['cook'] is Map
+            ? json['cook']['_id']?.toString()
+            : json['cook']?.toString()) ??
+        (json['cookId'] is Map
+            ? json['cookId']['_id']?.toString()
+            : json['cookId']?.toString()),
+    cookName: (json['cook'] is Map
+            ? (json['cook']['kitchenName'] ?? json['cook']['name'])?.toString()
+            : null) ??
+        (json['cookId'] is Map
+            ? (json['cookId']['kitchenName'] ?? json['cookId']['name'])?.toString()
+            : json['cookName']?.toString()),
   );
   final String id;
   final String name;
