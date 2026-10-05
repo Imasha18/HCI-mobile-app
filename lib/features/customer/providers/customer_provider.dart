@@ -54,6 +54,8 @@ class CustomerNotifier extends Notifier<CustomerState> {
       'role': role ?? 'customer',
       'name': rawUser['name'] ?? 'HomeBite customer',
       'email': rawUser['email'] ?? '',
+      'phone': rawUser['phone'] ?? '',
+      'address': rawUser['address'] ?? '',
       'profileImage': rawUser['profileImage'] ?? rawUser['avatar'] ?? '',
     };
   }
@@ -171,7 +173,13 @@ class CustomerNotifier extends Notifier<CustomerState> {
     }
   }
 
-  Future<bool> register(String name, String email, String password) async {
+  Future<bool> register(
+    String name,
+    String email,
+    String password, {
+    String? phone,
+    String? address,
+  }) async {
     if (name.trim().length < 2 ||
         email.trim().isEmpty ||
         password.trim().length < 6) {
@@ -189,14 +197,49 @@ class CustomerNotifier extends Notifier<CustomerState> {
           'name': name.trim(),
           'email': email.trim(),
           'password': password,
+          if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+          if (address != null && address.trim().isNotEmpty)
+            'address': address.trim(),
         },
       );
-      state = CustomerState(user: {'email': email.trim()});
+      state = CustomerState(user: {
+        'email': email.trim(),
+        'phone': phone?.trim() ?? '',
+        'address': address?.trim() ?? '',
+      });
       return true;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
       ApiClient().clearCache();
       state = CustomerState(error: ApiClient.messageFrom(error));
+      return false;
+    }
+  }
+
+  Future<bool> updateProfile(Map<String, dynamic> updates) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await ApiClient().dio.put(
+        '/customer/profile',
+        data: updates,
+      );
+      final payload = response.data['data'] as Map<String, dynamic>? ??
+          <String, dynamic>{};
+      final user = _normalizeUser(payload);
+      ApiClient().clearCache();
+      state = state.copyWith(isLoading: false, user: user, clearError: true);
+      return true;
+    } on DioException catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(error),
+      );
+      return false;
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Unable to update profile.',
+      );
       return false;
     }
   }
