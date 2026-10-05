@@ -17,11 +17,21 @@ class OrderNotifier extends AsyncNotifier<List<OrderModel>> {
         .toList();
   }
 
-  Future<OrderModel> createOrder(CartModel cart, String address) async {
+  Future<OrderModel> createOrder(
+    CartModel cart,
+    String address, {
+    String? phone,
+    bool saveAsDefault = false,
+  }) async {
     final response = await ApiClient().dio.post(
       '/orders',
       data: {
-        'deliveryAddress': address,
+        'deliveryAddress': {
+          'address': address,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+        },
+        if (phone != null && phone.isNotEmpty) 'deliveryPhone': phone,
+        'saveAsDefault': saveAsDefault,
         'items': cart.items
             .map(
               (item) => {
