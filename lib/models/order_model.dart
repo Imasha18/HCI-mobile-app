@@ -4,6 +4,7 @@ class OrderModel {
     required this.status,
     this.total = 0,
     this.deliveryAddress,
+    this.deliveryPhone,
     this.riderName,
     this.riderPhone,
     this.cookName,
@@ -29,11 +30,25 @@ class OrderModel {
       cPhone = c['phone'] as String?;
     }
 
+    String? deliveryAddr;
+    String? deliveryPh;
+    if (json['deliveryAddress'] is Map) {
+      final da = json['deliveryAddress'] as Map<String, dynamic>;
+      deliveryAddr = da['address'] as String?;
+      deliveryPh = da['phone'] as String?;
+    } else if (json['deliveryAddress'] is String) {
+      deliveryAddr = json['deliveryAddress'] as String;
+    }
+    if (deliveryPh == null && json['deliveryPhone'] is String) {
+      deliveryPh = json['deliveryPhone'] as String;
+    }
+
     return OrderModel(
       id: json['_id'] as String? ?? json['id'] as String? ?? '',
       status: json['status'] as String? ?? 'pending',
       total: (json['total'] as num?)?.toDouble() ?? 0,
-      deliveryAddress: json['deliveryAddress'] as String?,
+      deliveryAddress: deliveryAddr,
+      deliveryPhone: deliveryPh,
       riderName: rName,
       riderPhone: rPhone,
       cookName: cName,
@@ -45,6 +60,7 @@ class OrderModel {
   final String status;
   final double total;
   final String? deliveryAddress;
+  final String? deliveryPhone;
   final String? riderName;
   final String? riderPhone;
   final String? cookName;
