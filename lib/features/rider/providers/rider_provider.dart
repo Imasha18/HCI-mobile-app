@@ -109,6 +109,19 @@ class RiderNotifier extends StateNotifier<RiderState> {
     } catch (_) {}
   }
 
+  Future<void> fetchProfile() async {
+    try {
+      final response = await _client.dio.get('/rider/profile');
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        state = state.copyWith(
+          rider: data,
+          isOnline: data['isOnline'] as bool? ?? state.isOnline,
+        );
+      }
+    } catch (_) {}
+  }
+
   Future<void> toggleOnlineStatus(bool isOnline) async {
     final previous = state.isOnline;
     state = state.copyWith(isOnline: isOnline);

@@ -39,6 +39,13 @@ import '../features/rider/screens/delivery_requests_screen.dart';
 import '../features/rider/screens/delivery_request_details_screen.dart';
 import '../features/rider/screens/accept_delivery_screen.dart';
 import '../features/rider/screens/pickup_screen.dart';
+import '../features/rider/screens/navigation_screen.dart';
+import '../features/rider/screens/in_transit_screen.dart';
+import '../features/rider/screens/delivery_confirmation_screen.dart';
+import '../features/rider/screens/rider_earnings_screen.dart';
+import '../features/rider/screens/delivery_history_screen.dart';
+import '../features/rider/screens/rider_profile_screen.dart';
+import '../features/rider/screens/rider_notifications_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -61,6 +68,19 @@ class RouteGenerator {
       AppRoutes.riderPickup => PickupScreen(
           delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
         ),
+      AppRoutes.riderNavigation => NavigationScreen(
+          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+        ),
+      AppRoutes.riderInTransit => InTransitScreen(
+          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+        ),
+      AppRoutes.riderDeliveryConfirmation => DeliveryConfirmationScreen(
+          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+        ),
+      AppRoutes.riderEarnings => const RiderEarningsScreen(),
+      AppRoutes.deliveryHistory => const DeliveryHistoryScreen(),
+      AppRoutes.riderProfile => const RiderProfileScreen(),
+      AppRoutes.riderNotifications => const RiderNotificationsScreen(),
       AppRoutes.manageMenu => const ManageMenuScreen(),
       AppRoutes.addMeal => const AddMealScreen(),
       AppRoutes.editMeal => EditMealScreen(
