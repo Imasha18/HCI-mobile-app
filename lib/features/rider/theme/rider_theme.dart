@@ -45,6 +45,14 @@ class RiderTheme {
     ),
   ];
 
+  static const List<BoxShadow> cardShadow = [
+    BoxShadow(
+      color: Color(0x14000000),
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ];
+
   static Color getStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'AVAILABLE':
