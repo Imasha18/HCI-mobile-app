@@ -34,14 +34,15 @@ class _InTransitScreenState extends ConsumerState<InTransitScreen> {
   Widget build(BuildContext context) {
     final locationState = ref.watch(locationProvider);
     final delivery = widget.delivery;
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final customer = delivery['customerId'] as Map<String, dynamic>?;
+    final customer = RiderTheme.safeMap(delivery['customerId']);
     final custName = customer?['name'] ?? 'Nimal Jayasuriya';
     final custPhone = customer?['phone'] ?? '+94 71 890 1234';
-    final dropAddr = delivery['deliveryLocation']?['address'] ??
+    final dropLoc = RiderTheme.safeMap(delivery['deliveryLocation']);
+    final dropAddr = dropLoc?['address'] ??
         customer?['address'] ??
         '18 Flower Road, Colombo 07';
 

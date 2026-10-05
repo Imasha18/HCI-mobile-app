@@ -28,13 +28,14 @@ class _DeliveryConfirmationScreenState
   Widget build(BuildContext context) {
     final delivery = widget.delivery;
     final deliveryId = (delivery['_id'] ?? delivery['id'] ?? '').toString();
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final customer = delivery['customerId'] as Map<String, dynamic>?;
+    final customer = RiderTheme.safeMap(delivery['customerId']);
     final custName = customer?['name'] ?? 'Nimal Jayasuriya';
-    final dropAddr = delivery['deliveryLocation']?['address'] ??
+    final dropLoc = RiderTheme.safeMap(delivery['deliveryLocation']);
+    final dropAddr = dropLoc?['address'] ??
         customer?['address'] ??
         '18 Flower Road, Colombo 07';
     final deliveryFee = (delivery['deliveryFee'] as num?)?.toDouble() ?? 450.0;

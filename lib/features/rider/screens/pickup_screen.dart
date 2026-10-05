@@ -18,19 +18,37 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
   bool _reachedCook = false;
   bool _isProcessing = false;
   final Set<int> _checkedItems = {};
+  late Map<String, dynamic> _delivery;
+
+  @override
+  void initState() {
+    super.initState();
+    _delivery = Map<String, dynamic>.from(widget.delivery);
+    final deliveryId = (_delivery['_id'] ?? _delivery['id'] ?? '').toString();
+    if (deliveryId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(deliveryProvider.notifier).fetchDeliveryDetails(deliveryId).then((fresh) {
+          if (fresh != null && mounted) {
+            setState(() => _delivery = fresh);
+          }
+        });
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final delivery = widget.delivery;
+    final delivery = _delivery;
     final deliveryId = (delivery['_id'] ?? delivery['id'] ?? '').toString();
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final cook = delivery['cookId'] as Map<String, dynamic>?;
+    final cook = RiderTheme.safeMap(delivery['cookId']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
     final cookPhone = cook?['phone'] ?? '+94 77 234 5678';
-    final pickupAddr = delivery['pickupLocation']?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
+    final pickupLoc = RiderTheme.safeMap(delivery['pickupLocation']);
+    final pickupAddr = pickupLoc?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
 
     final items = (order?['items'] as List<dynamic>?) ?? [];
 
@@ -174,10 +192,10 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                 if (items.isNotEmpty)
                   ...items.asMap().entries.map((entry) {
                     final idx = entry.key;
-                    final item = entry.value;
-                    final meal = item['meal'] as Map<String, dynamic>?;
-                    final name = item['name'] ?? meal?['name'] ?? 'Home meal';
-                    final qty = item['quantity'] ?? 1;
+                    final itemMap = RiderTheme.safeMap(entry.value);
+                    final meal = RiderTheme.safeMap(itemMap?['meal']);
+                    final name = itemMap?['name'] ?? meal?['name'] ?? 'Home meal';
+                    final qty = itemMap?['quantity'] ?? 1;
                     final isChecked = _checkedItems.contains(idx);
 
                     return CheckboxListTile(
@@ -203,6 +221,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                     activeColor: RiderTheme.primaryGreen,
                     title: const Text('2 × Authentic Sri Lankan Lamprais', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     subtitle: const Text('Banana leaf sealed packet', style: TextStyle(fontSize: 12, color: Colors.green)),
+                    contentPadding: EdgeInsets.zero,
                     onChanged: (val) {
                       setState(() {
                         if (val == true) {
