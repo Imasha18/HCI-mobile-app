@@ -49,4 +49,20 @@ class AppRoutes {
   static const deliveryHistory = '/rider-delivery-history';
   static const riderProfile = '/rider-profile';
   static const riderNotifications = '/rider-notifications';
+
+  // Admin Module Routes
+  static const adminLogin = '/admin-login';
+  static const adminDashboard = '/admin-dashboard';
+  static const adminUsers = '/admin-users';
+  static const adminCustomers = '/admin-customers';
+  static const adminCooks = '/admin-cooks';
+  static const adminRiders = '/admin-riders';
+  static const adminVerification = '/admin-verification';
+  static const adminMeals = '/admin-meals';
+  static const adminOrders = '/admin-orders';
+  static const adminComplaints = '/admin-complaints';
+  static const adminReports = '/admin-reports';
+  static const adminStatistics = '/admin-statistics';
+  static const adminNotifications = '/admin-notifications';
+  static const adminProfile = '/admin-profile';
 }
