@@ -200,6 +200,87 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>?> createDelivery(Map<String, dynamic> deliveryData) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.post('/deliveries', data: deliveryData);
+      final data = response.data['data'] as Map<String, dynamic>;
+      state = state.copyWith(isLoading: false);
+      await fetchAvailableDeliveries();
+      return data;
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false, error: ApiClient.messageFrom(e));
+      return null;
+    } catch (_) {
+      state = state.copyWith(isLoading: false, error: 'Failed to create delivery');
+      return null;
+    }
+  }
+
+  Future<bool> updateDelivery(String id, Map<String, dynamic> updateData) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.put('/deliveries/$id', data: updateData);
+      final data = response.data['data'] as Map<String, dynamic>;
+      state = state.copyWith(
+        isLoading: false,
+        selectedDelivery: data,
+        activeDelivery: state.activeDelivery?['_id'] == id ? data : state.activeDelivery,
+      );
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false, error: ApiClient.messageFrom(e));
+      return false;
+    } catch (_) {
+      state = state.copyWith(isLoading: false, error: 'Failed to update delivery');
+      return false;
+    }
+  }
+
+  Future<bool> cancelDelivery(String id, {String? reason}) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final payload = <String, dynamic>{};
+      if (reason != null) {
+        payload['reason'] = reason;
+      }
+      final response = await _client.dio.patch('/deliveries/$id/cancel', data: payload);
+      final data = response.data['data'] as Map<String, dynamic>;
+      state = state.copyWith(
+        isLoading: false,
+        selectedDelivery: data,
+        activeDelivery: state.activeDelivery?['_id'] == id ? null : state.activeDelivery,
+      );
+      await fetchAvailableDeliveries();
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false, error: ApiClient.messageFrom(e));
+      return false;
+    } catch (_) {
+      state = state.copyWith(isLoading: false, error: 'Failed to cancel delivery');
+      return false;
+    }
+  }
+
+  Future<bool> deleteDelivery(String id) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _client.dio.delete('/deliveries/$id');
+      state = state.copyWith(
+        isLoading: false,
+        activeDelivery: state.activeDelivery?['_id'] == id ? null : state.activeDelivery,
+      );
+      await fetchAvailableDeliveries();
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false, error: ApiClient.messageFrom(e));
+      return false;
+    } catch (_) {
+      state = state.copyWith(isLoading: false, error: 'Failed to delete delivery');
+      return false;
+    }
+  }
 }
 
 final deliveryProvider = StateNotifierProvider<DeliveryNotifier, DeliveryState>((ref) {
