@@ -10,14 +10,15 @@ class AcceptDeliveryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final cook = delivery['cookId'] as Map<String, dynamic>?;
+    final cook = RiderTheme.safeMap(delivery['cookId']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
     final cookPhone = cook?['phone'] ?? '+94 77 234 5678';
-    final pickupAddr = delivery['pickupLocation']?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
+    final pickupLoc = RiderTheme.safeMap(delivery['pickupLocation']);
+    final pickupAddr = pickupLoc?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
     final deliveryFee = (delivery['deliveryFee'] as num?)?.toDouble() ?? 450.0;
 
     return Scaffold(
@@ -137,7 +138,7 @@ class AcceptDeliveryScreen extends StatelessWidget {
                 height: 54,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Navigator.pushReplacementNamed(
+                    Navigator.pushNamed(
                       context,
                       AppRoutes.riderPickup,
                       arguments: delivery,

@@ -45,16 +45,18 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final locationState = ref.watch(locationProvider);
     final delivery = widget.delivery;
 
-    final cook = delivery['cookId'] as Map<String, dynamic>?;
+    final cook = RiderTheme.safeMap(delivery['cookId']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
     final cookPhone = cook?['phone'] ?? '+94 77 234 5678';
+    final pickupLoc = RiderTheme.safeMap(delivery['pickupLocation']);
     final pickupAddr =
-        delivery['pickupLocation']?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
+        pickupLoc?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
 
-    final customer = delivery['customerId'] as Map<String, dynamic>?;
+    final customer = RiderTheme.safeMap(delivery['customerId']);
     final custName = customer?['name'] ?? 'Nimal Jayasuriya';
     final custPhone = customer?['phone'] ?? '+94 71 890 1234';
-    final dropAddr = delivery['deliveryLocation']?['address'] ??
+    final dropLoc = RiderTheme.safeMap(delivery['deliveryLocation']);
+    final dropAddr = dropLoc?['address'] ??
         customer?['address'] ??
         '18 Flower Road, Colombo 07';
 

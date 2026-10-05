@@ -108,16 +108,17 @@ class _DeliveryHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final cook = delivery['cookId'] as Map<String, dynamic>?;
+    final cook = RiderTheme.safeMap(delivery['cookId']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
 
-    final customer = delivery['customerId'] as Map<String, dynamic>?;
+    final customer = RiderTheme.safeMap(delivery['customerId']);
     final custName = customer?['name'] ?? 'HomeBite Customer';
-    final custAddress = delivery['deliveryLocation']?['address'] ??
+    final dropLoc = RiderTheme.safeMap(delivery['deliveryLocation']);
+    final custAddress = dropLoc?['address'] ??
         customer?['address'] ??
         'Colombo, Sri Lanka';
 

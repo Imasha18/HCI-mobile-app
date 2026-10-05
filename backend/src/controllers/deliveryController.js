@@ -109,7 +109,19 @@ async function acceptDelivery(req, res) {
     });
   }
 
-  return sendSuccess(res, delivery, 'Delivery accepted successfully');
+  const populated = await Delivery.findById(delivery._id)
+    .populate({
+      path: 'orderId',
+      populate: {
+        path: 'items.meal',
+        select: 'name imageUrl price category',
+      },
+    })
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address')
+    .populate('riderId', 'name phone vehicleDetails rating profileImage');
+
+  return sendSuccess(res, populated || delivery, 'Delivery accepted successfully');
 }
 
 // PATCH /api/deliveries/:id/pickup
@@ -133,7 +145,18 @@ async function pickupDelivery(req, res) {
     });
   }
 
-  return sendSuccess(res, delivery, 'Food picked up from cook');
+  const populated = await Delivery.findById(delivery._id)
+    .populate({
+      path: 'orderId',
+      populate: {
+        path: 'items.meal',
+        select: 'name imageUrl price category',
+      },
+    })
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address');
+
+  return sendSuccess(res, populated || delivery, 'Food picked up from cook');
 }
 
 // PATCH /api/deliveries/:id/start
@@ -156,7 +179,18 @@ async function startDelivery(req, res) {
     });
   }
 
-  return sendSuccess(res, delivery, 'Delivery is in transit');
+  const populated = await Delivery.findById(delivery._id)
+    .populate({
+      path: 'orderId',
+      populate: {
+        path: 'items.meal',
+        select: 'name imageUrl price category',
+      },
+    })
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address');
+
+  return sendSuccess(res, populated || delivery, 'Delivery is in transit');
 }
 
 // PATCH /api/deliveries/:id/complete
@@ -202,7 +236,18 @@ async function completeDelivery(req, res) {
     body: `Delivery finished successfully! Rs. ${(delivery.deliveryFee || 350).toFixed(2)} added to your earnings.`,
   });
 
-  return sendSuccess(res, delivery, 'Delivery confirmed and completed');
+  const populated = await Delivery.findById(delivery._id)
+    .populate({
+      path: 'orderId',
+      populate: {
+        path: 'items.meal',
+        select: 'name imageUrl price category',
+      },
+    })
+    .populate('cookId', 'name kitchenName phone address profileImage')
+    .populate('customerId', 'name phone address');
+
+  return sendSuccess(res, populated || delivery, 'Delivery confirmed and completed');
 }
 
 module.exports = {

@@ -65,19 +65,21 @@ class _DeliveryRequestDetailsScreenState extends ConsumerState<DeliveryRequestDe
     }
 
     final delivery = _delivery!;
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final cook = delivery['cookId'] as Map<String, dynamic>?;
+    final cook = RiderTheme.safeMap(delivery['cookId']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
     final cookPhone = cook?['phone'] ?? '+94 77 234 5678';
-    final pickupAddr = delivery['pickupLocation']?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
+    final pickupLoc = RiderTheme.safeMap(delivery['pickupLocation']);
+    final pickupAddr = pickupLoc?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
 
-    final customer = delivery['customerId'] as Map<String, dynamic>?;
+    final customer = RiderTheme.safeMap(delivery['customerId']);
     final custName = customer?['name'] ?? 'Nimal Jayasuriya';
     final custPhone = customer?['phone'] ?? '+94 71 890 1234';
-    final dropAddr = delivery['deliveryLocation']?['address'] ?? customer?['address'] ?? '18 Flower Road, Colombo 07';
+    final dropLoc = RiderTheme.safeMap(delivery['deliveryLocation']);
+    final dropAddr = dropLoc?['address'] ?? customer?['address'] ?? '18 Flower Road, Colombo 07';
 
     final deliveryFee = (delivery['deliveryFee'] as num?)?.toDouble() ?? 450.0;
     final distanceKm = delivery['distanceKm'] ?? 4.2;
@@ -269,10 +271,11 @@ class _DeliveryRequestDetailsScreenState extends ConsumerState<DeliveryRequestDe
                 const SizedBox(height: 12),
                 if (items.isNotEmpty)
                   ...items.map((item) {
-                    final meal = item['meal'] as Map<String, dynamic>?;
-                    final name = item['name'] ?? meal?['name'] ?? 'Home-cooked dish';
-                    final qty = item['quantity'] ?? 1;
-                    final price = (item['price'] as num?)?.toDouble() ?? 750.0;
+                    final itemMap = RiderTheme.safeMap(item);
+                    final meal = RiderTheme.safeMap(itemMap?['meal']);
+                    final name = itemMap?['name'] ?? meal?['name'] ?? 'Home-cooked dish';
+                    final qty = itemMap?['quantity'] ?? 1;
+                    final price = (itemMap?['price'] as num?)?.toDouble() ?? 750.0;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(

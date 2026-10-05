@@ -63,19 +63,29 @@ class RouteGenerator {
           deliveryId: settings.arguments as String? ?? '',
         ),
       AppRoutes.acceptDelivery => AcceptDeliveryScreen(
-          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
         ),
       AppRoutes.riderPickup => PickupScreen(
-          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
         ),
       AppRoutes.riderNavigation => NavigationScreen(
-          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
         ),
       AppRoutes.riderInTransit => InTransitScreen(
-          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
         ),
       AppRoutes.riderDeliveryConfirmation => DeliveryConfirmationScreen(
-          delivery: (settings.arguments as Map<String, dynamic>?) ?? {},
+          delivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
         ),
       AppRoutes.riderEarnings => const RiderEarningsScreen(),
       AppRoutes.deliveryHistory => const DeliveryHistoryScreen(),
