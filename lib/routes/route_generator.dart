@@ -46,6 +46,8 @@ import '../features/rider/screens/rider_earnings_screen.dart';
 import '../features/rider/screens/delivery_history_screen.dart';
 import '../features/rider/screens/rider_profile_screen.dart';
 import '../features/rider/screens/rider_notifications_screen.dart';
+import '../features/admin/screens/admin_login_screen.dart';
+import '../features/admin/screens/admin_dashboard_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -143,6 +145,8 @@ class RouteGenerator {
       AppRoutes.review => ReviewScreen(mealId: settings.arguments as String),
       AppRoutes.profile => const CustomerProfileScreen(),
       AppRoutes.notifications => const NotificationScreen(),
+      AppRoutes.adminLogin => const AdminLoginScreen(),
+      AppRoutes.adminDashboard => const AdminDashboardScreen(),
       _ => const Scaffold(body: Center(child: Text('Page not found'))),
     };
     return MaterialPageRoute(builder: (_) => page, settings: settings);

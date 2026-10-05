@@ -22,6 +22,8 @@ function publicUser(user) {
     kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
     vehicleDetails: user.vehicleDetails || { type: 'Motorbike', model: 'Honda Dio', plateNumber: 'WP BZ-4892' },
     emailVerified: user.emailVerified,
+    isBlocked: user.isBlocked ?? false,
+    verificationStatus: user.verificationStatus || 'approved',
   };
 }
 
@@ -128,6 +130,9 @@ async function login(req, res) {
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ success: false, message: 'Invalid email or password' });
+  }
+  if (user.isBlocked) {
+    return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
   }
   if (role && user.role !== role) {
     return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
