@@ -69,13 +69,13 @@ class _DeliveryRequestDetailsScreenState extends ConsumerState<DeliveryRequestDe
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final cook = RiderTheme.safeMap(delivery['cookId']);
+    final cook = RiderTheme.safeMap(delivery['cookId']) ?? RiderTheme.safeMap(order?['cook']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
     final cookPhone = cook?['phone'] ?? '+94 77 234 5678';
     final pickupLoc = RiderTheme.safeMap(delivery['pickupLocation']);
     final pickupAddr = pickupLoc?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
 
-    final customer = RiderTheme.safeMap(delivery['customerId']);
+    final customer = RiderTheme.safeMap(delivery['customerId']) ?? RiderTheme.safeMap(order?['customer']);
     final custName = customer?['name'] ?? 'Nimal Jayasuriya';
     final custPhone = customer?['phone'] ?? '+94 71 890 1234';
     final dropLoc = RiderTheme.safeMap(delivery['deliveryLocation']);

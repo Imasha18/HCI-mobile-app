@@ -1,6 +1,8 @@
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Meal = require('../models/Meal');
+const User = require('../models/User');
+const Delivery = require('../models/Delivery');
 const Notification = require('../models/Notification');
 const Earning = require('../models/Earning');
 const { sendSuccess } = require('../utils/apiResponse');
@@ -10,8 +12,10 @@ async function listOrders(req, res) {
   const filter = req.user.role === 'cook' ? { cook: req.user.id } : { customer: req.user.id };
   const orders = await Order.find(filter)
     .populate('customer', 'name phone address')
-    .populate('cook', 'name kitchenName phone')
-    .populate('items.meal', 'name imageUrl price category');
+    .populate('cook', 'name kitchenName phone address profileImage')
+    .populate('rider', 'name phone vehicleDetails rating profileImage')
+    .populate('items.meal', 'name imageUrl price category')
+    .sort({ createdAt: -1 });
   return sendSuccess(res, orders);
 }
 
@@ -30,16 +34,47 @@ async function createOrder(req, res) {
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cookId = req.body.cookId || req.body.cook || meals[0].cook;
 
+  const [cookUser, customerUser] = await Promise.all([
+    User.findById(cookId),
+    User.findById(req.user.id),
+  ]);
+
+  const deliveryAddress = req.body.deliveryAddress || customerUser?.address || '18 Flower Road, Colombo 07, Sri Lanka';
+  const pickupAddress = cookUser?.address || '45/2 Galle Road, Colombo 03, Sri Lanka';
+
   const order = await Order.create({
     ...req.body,
     customer: req.user.id,
     cook: cookId,
     items,
     total,
+    deliveryAddress,
     status: 'Order Received',
   });
 
   await Cart.deleteOne({ customer: req.user.id });
+
+  // Connect to Delivery Module: Immediately create available delivery request for riders
+  await Delivery.create({
+    orderId: order._id,
+    order: order._id,
+    cookId: cookId,
+    customerId: req.user.id,
+    pickupLocation: {
+      address: pickupAddress,
+      latitude: cookUser?.latitude || 6.9034,
+      longitude: cookUser?.longitude || 79.8546,
+    },
+    deliveryLocation: {
+      address: deliveryAddress,
+      latitude: customerUser?.latitude || 6.9128,
+      longitude: customerUser?.longitude || 79.8653,
+    },
+    status: 'AVAILABLE',
+    deliveryFee: 350.0,
+    distanceKm: 3.8,
+    estimatedMinutes: 20,
+  });
 
   // Notifications
   await Notification.create({
@@ -56,6 +91,18 @@ async function createOrder(req, res) {
     });
   }
 
+  // Notify riders of new available delivery
+  try {
+    const riders = await User.find({ role: 'rider' }).limit(10);
+    for (const rider of riders) {
+      await Notification.create({
+        user: rider._id,
+        title: 'New Delivery Request',
+        body: `New delivery available for Order #${order.id} from ${cookUser?.kitchenName || cookUser?.name || 'Home Cook'}.`,
+      });
+    }
+  } catch (_) {}
+
   return sendSuccess(res, order, 'Order created', 201);
 }
 
@@ -69,7 +116,8 @@ async function getOrder(req, res) {
 
   const order = await Order.findOne(query)
     .populate('customer', 'name phone address')
-    .populate('cook', 'name kitchenName phone')
+    .populate('cook', 'name kitchenName phone address profileImage')
+    .populate('rider', 'name phone vehicleDetails rating profileImage')
     .populate('items.meal', 'name imageUrl price category');
 
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
