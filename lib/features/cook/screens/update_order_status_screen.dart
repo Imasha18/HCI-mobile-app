@@ -32,8 +32,17 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
     _currentStatus = (widget.order['status'] as String?) ?? 'Order Received';
   }
 
+  String get _normalizedStatus {
+    final s = _currentStatus.trim().toLowerCase();
+    if (s.contains('deliver') || s.contains('complet')) return 'Completed';
+    if (s.contains('ready') || s.contains('pickup')) return 'Ready For Pickup';
+    if (s.contains('prepar')) return 'Preparing';
+    if (s.contains('accept')) return 'Accepted';
+    return 'Order Received';
+  }
+
   int get _currentStepIndex {
-    final idx = _timelineSteps.indexOf(_currentStatus);
+    final idx = _timelineSteps.indexOf(_normalizedStatus);
     return idx != -1 ? idx : 0;
   }
 
@@ -237,7 +246,7 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
             const SizedBox(height: 12),
 
             // Button: Start Preparing
-            if (_currentStatus == 'Accepted' || _currentStatus == 'Order Received')
+            if (_normalizedStatus == 'Accepted' || _normalizedStatus == 'Order Received')
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SizedBox(
@@ -268,7 +277,7 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
               ),
 
             // Button: Open Interactive Cooking Checklist & Timer
-            if (_currentStatus == 'Preparing') ...[
+            if (_normalizedStatus == 'Preparing') ...[
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SizedBox(
@@ -312,7 +321,7 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
             ],
 
             // Button: Complete
-            if (_currentStatus == 'Ready For Pickup')
+            if (_normalizedStatus == 'Ready For Pickup')
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: SizedBox(
@@ -331,7 +340,7 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
                 ),
               ),
 
-            if (_currentStatus == 'Completed')
+            if (_normalizedStatus == 'Completed')
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -351,6 +360,37 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
                   ],
                 ),
               ),
+
+            const SizedBox(height: 16),
+            const Text(
+              'Change Kitchen Stage Manually',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: CookTheme.textMuted),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: ['Accepted', 'Preparing', 'Ready For Pickup', 'Completed'].map((stage) {
+                final isCurrent = _normalizedStatus == stage;
+                return ChoiceChip(
+                  label: Text(stage),
+                  selected: isCurrent,
+                  selectedColor: CookTheme.secondaryOrange,
+                  labelStyle: TextStyle(
+                    color: isCurrent ? CookTheme.primaryDark : CookTheme.textDark,
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  onSelected: _isUpdating
+                      ? null
+                      : (selected) {
+                          if (selected && !isCurrent) {
+                            _updateStatus(stage);
+                          }
+                        },
+                );
+              }).toList(),
+            ),
 
             const SizedBox(height: 24),
           ],
