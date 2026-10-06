@@ -48,6 +48,13 @@ import '../features/rider/screens/rider_profile_screen.dart';
 import '../features/rider/screens/rider_notifications_screen.dart';
 import '../features/admin/screens/admin_login_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
+import '../features/admin/screens/user_management_screen.dart';
+import '../features/admin/screens/customer_management_screen.dart';
+import '../features/admin/screens/cook_management_screen.dart';
+import '../features/admin/screens/rider_management_screen.dart';
+import '../features/admin/screens/verification_screen.dart';
+import '../features/admin/screens/meal_management_screen.dart';
+import '../features/admin/screens/order_monitoring_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -147,6 +154,13 @@ class RouteGenerator {
       AppRoutes.notifications => const NotificationScreen(),
       AppRoutes.adminLogin => const AdminLoginScreen(),
       AppRoutes.adminDashboard => const AdminDashboardScreen(),
+      AppRoutes.adminUsers => const UserManagementScreen(),
+      AppRoutes.adminCustomers => const CustomerManagementScreen(),
+      AppRoutes.adminCooks => const CookManagementScreen(),
+      AppRoutes.adminRiders => const RiderManagementScreen(),
+      AppRoutes.adminVerification => const VerificationScreen(),
+      AppRoutes.adminMeals => const MealManagementScreen(),
+      AppRoutes.adminOrders => const OrderMonitoringScreen(),
       _ => const Scaffold(body: Center(child: Text('Page not found'))),
     };
     return MaterialPageRoute(builder: (_) => page, settings: settings);
