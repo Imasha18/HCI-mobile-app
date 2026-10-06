@@ -60,6 +60,12 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
         ? '${createdAt.substring(11, 16)} • ${createdAt.substring(0, 10)}'
         : 'Recently';
 
+    final rider = order['rider'] as Map<String, dynamic>?;
+    final riderName = rider?['name'] as String?;
+    final riderPhone = rider?['phone'] as String?;
+    final vehicle = rider?['vehicleDetails'] as Map<String, dynamic>?;
+    final vehicleModel = vehicle?['model'] as String? ?? vehicle?['type'] as String?;
+
     final isReceived = status == 'Order Received' || status == 'pending';
 
     return Scaffold(
@@ -194,6 +200,73 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
                 ],
               ),
             ),
+
+            if (riderName != null) ...[
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: CookTheme.softShadow,
+                  border: Border.all(color: const Color(0xFF20C957), width: 1.2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.delivery_dining, color: Color(0xFF20C957)),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Assigned Delivery Rider',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: CookTheme.textDark),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8FBEF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text('Rider Assigned', style: TextStyle(color: Color(0xFF20C957), fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: const Color(0xFFE8FBEF),
+                          child: Text(
+                            riderName.isNotEmpty ? riderName[0].toUpperCase() : 'R',
+                            style: const TextStyle(color: Color(0xFF20C957), fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(riderName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              if (vehicleModel != null)
+                                Text(vehicleModel, style: const TextStyle(fontSize: 12, color: CookTheme.textMuted)),
+                            ],
+                          ),
+                        ),
+                        if (riderPhone != null)
+                          IconButton(
+                            icon: const Icon(Icons.phone, color: Color(0xFF20C957)),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Calling rider $riderPhone...')));
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 18),
 

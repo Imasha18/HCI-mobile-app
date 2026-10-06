@@ -150,15 +150,15 @@ class _DeliveryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deliveryId = (delivery['_id'] ?? delivery['id'] ?? '').toString();
-    final order = delivery['orderId'] as Map<String, dynamic>?;
+    final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
 
-    final cook = delivery['cookId'] as Map<String, dynamic>?;
+    final cook = RiderTheme.safeMap(delivery['cookId']) ?? RiderTheme.safeMap(order?['cook']);
     final cookName = cook?['kitchenName'] ?? cook?['name'] ?? "Amma's Spice Kitchen";
     final pickupAddr = delivery['pickupLocation']?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
 
-    final customer = delivery['customerId'] as Map<String, dynamic>?;
+    final customer = RiderTheme.safeMap(delivery['customerId']) ?? RiderTheme.safeMap(order?['customer']);
     final custName = customer?['name'] ?? 'Nimal Jayasuriya';
     final dropAddr = delivery['deliveryLocation']?['address'] ?? customer?['address'] ?? '18 Flower Road, Colombo 07';
 

@@ -116,6 +116,7 @@ async function getCookOrders(req, res) {
   const orders = await Order.find(filter)
     .sort({ createdAt: -1 })
     .populate('customer', 'name phone address')
+    .populate('rider', 'name phone vehicleDetails rating profileImage')
     .populate('items.meal', 'name imageUrl price category');
 
   return sendSuccess(res, orders);
@@ -126,6 +127,7 @@ async function getCookOrderById(req, res) {
   const cookId = req.user.id;
   const order = await Order.findOne({ _id: req.params.id, cook: cookId })
     .populate('customer', 'name phone address')
+    .populate('rider', 'name phone vehicleDetails rating profileImage')
     .populate('items.meal', 'name imageUrl price category');
 
   if (!order) {

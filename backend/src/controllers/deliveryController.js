@@ -6,22 +6,30 @@ const { sendSuccess } = require('../utils/apiResponse');
 
 // GET /api/deliveries/available
 async function getAvailableDeliveries(req, res) {
-  // Find deliveries that are AVAILABLE, or auto-create deliveries for orders that are 'Ready For Pickup'
+  // Find deliveries that are AVAILABLE
   let available = await Delivery.find({ status: 'AVAILABLE' })
     .sort({ createdAt: -1 })
-    .populate('orderId')
+    .populate({
+      path: 'orderId',
+      populate: [
+        { path: 'items.meal', select: 'name imageUrl price category' },
+        { path: 'customer', select: 'name phone address' },
+        { path: 'cook', select: 'name kitchenName phone address profileImage' },
+      ],
+    })
     .populate('cookId', 'name kitchenName phone address profileImage')
     .populate('customerId', 'name phone address');
 
-  // If there are ready orders without an available delivery doc, create them dynamically
-  const readyOrders = await Order.find({
-    status: { $in: ['Ready For Pickup', 'Accepted', 'Preparing'] },
+  // If there are active orders without an available delivery doc, create them dynamically
+  const activeOrders = await Order.find({
+    status: { $in: ['Order Received', 'Pending', 'Placed', 'Accepted', 'Preparing', 'Ready For Pickup'] },
+    rider: { $in: [null, undefined] },
   })
     .populate('cook', 'name kitchenName phone address profileImage')
     .populate('customer', 'name phone address')
     .populate('items.meal', 'name imageUrl price category');
 
-  for (const order of readyOrders) {
+  for (const order of activeOrders) {
     const existing = await Delivery.findOne({ orderId: order._id });
     if (!existing) {
       const newDel = await Delivery.create({
@@ -46,7 +54,14 @@ async function getAvailableDeliveries(req, res) {
       });
 
       const populated = await Delivery.findById(newDel._id)
-        .populate('orderId')
+        .populate({
+          path: 'orderId',
+          populate: [
+            { path: 'items.meal', select: 'name imageUrl price category' },
+            { path: 'customer', select: 'name phone address' },
+            { path: 'cook', select: 'name kitchenName phone address profileImage' },
+          ],
+        })
         .populate('cookId', 'name kitchenName phone address profileImage')
         .populate('customerId', 'name phone address');
 
@@ -62,10 +77,11 @@ async function getDeliveryById(req, res) {
   const delivery = await Delivery.findById(req.params.id)
     .populate({
       path: 'orderId',
-      populate: {
-        path: 'items.meal',
-        select: 'name imageUrl price category',
-      },
+      populate: [
+        { path: 'items.meal', select: 'name imageUrl price category' },
+        { path: 'customer', select: 'name phone address' },
+        { path: 'cook', select: 'name kitchenName phone address profileImage' },
+      ],
     })
     .populate('cookId', 'name kitchenName phone address profileImage')
     .populate('customerId', 'name phone address')
@@ -92,7 +108,7 @@ async function acceptDelivery(req, res) {
   delivery.status = 'ACCEPTED';
   await delivery.save();
 
-  // Also update Order rider reference
+  // Also update Order rider reference and status
   if (delivery.orderId) {
     await Order.findByIdAndUpdate(delivery.orderId, {
       rider: req.user.id,
@@ -100,12 +116,19 @@ async function acceptDelivery(req, res) {
     });
   }
 
-  // Send notifications
+  // Send notifications to Customer and Cook
   if (delivery.customerId) {
     await Notification.create({
       user: delivery.customerId,
       title: 'Rider Assigned',
       body: 'A HomeBite rider has accepted your delivery and is heading to the kitchen.',
+    });
+  }
+  if (delivery.cookId) {
+    await Notification.create({
+      user: delivery.cookId,
+      title: 'Rider Assigned',
+      body: 'A delivery rider has accepted the order and is on their way to pick up the food.',
     });
   }
 
@@ -142,6 +165,13 @@ async function pickupDelivery(req, res) {
       user: delivery.customerId,
       title: 'Food Picked Up',
       body: 'Your rider has picked up your food from the kitchen.',
+    });
+  }
+  if (delivery.cookId) {
+    await Notification.create({
+      user: delivery.cookId,
+      title: 'Food Picked Up',
+      body: 'The rider has picked up the food from your kitchen.',
     });
   }
 
@@ -205,9 +235,25 @@ async function completeDelivery(req, res) {
   }
   await delivery.save();
 
-  // Update order status to Completed / Delivered
+  // Update order status to Delivered and paymentStatus to paid
   if (delivery.orderId) {
-    await Order.findByIdAndUpdate(delivery.orderId, { status: 'Delivered' });
+    const updatedOrder = await Order.findByIdAndUpdate(
+      delivery.orderId,
+      { status: 'Delivered', paymentStatus: 'paid' },
+      { new: true }
+    );
+    // Create Cook Earning record if not existing
+    if (updatedOrder && updatedOrder.cook) {
+      const existingCookEarning = await Earning.findOne({ orderId: updatedOrder._id, cookId: updatedOrder.cook });
+      if (!existingCookEarning) {
+        await Earning.create({
+          cookId: updatedOrder.cook,
+          orderId: updatedOrder._id,
+          amount: updatedOrder.total,
+          date: new Date(),
+        });
+      }
+    }
   }
 
   // Create Rider Earning record
@@ -227,6 +273,13 @@ async function completeDelivery(req, res) {
       user: delivery.customerId,
       title: 'Order Delivered',
       body: 'Your order has been safely delivered! Enjoy your meal.',
+    });
+  }
+  if (delivery.cookId) {
+    await Notification.create({
+      user: delivery.cookId,
+      title: 'Order Completed',
+      body: 'Order has been delivered to customer and payment is completed.',
     });
   }
 
