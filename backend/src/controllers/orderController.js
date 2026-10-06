@@ -198,6 +198,15 @@ async function updateOrderStatus(req, res) {
     body: `Your order #${order.id} is now ${status}.`,
   });
 
+  // Notify assigned rider if one is assigned
+  if (order.rider) {
+    await Notification.create({
+      user: order.rider,
+      title: `Order Status: ${status}`,
+      body: `Kitchen updated Order #${order.id} to ${status}.`,
+    });
+  }
+
   return sendSuccess(res, order, `Order status updated to ${status}`);
 }
 
