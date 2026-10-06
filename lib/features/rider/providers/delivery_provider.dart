@@ -281,6 +281,10 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       return false;
     }
   }
+
+  void reset() {
+    state = const DeliveryState();
+  }
 }
 
 final deliveryProvider = StateNotifierProvider<DeliveryNotifier, DeliveryState>((ref) {

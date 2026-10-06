@@ -288,7 +288,9 @@ async function sendVerificationCode(email, code) {
   const transporter = createTransporter();
   if (!transporter) {
     if (environment.nodeEnv === 'production') throw new Error('Email service is not configured');
-    console.log(`Verification code for ${email}: ${code}`);
+    if (environment.nodeEnv !== 'test') {
+      console.log(`[Dev] Verification code dispatch for ${email}`);
+    }
     return;
   }
   const attachments = getAttachments();
@@ -308,7 +310,9 @@ async function sendPasswordResetCode(email, code) {
   const transporter = createTransporter();
   if (!transporter) {
     if (environment.nodeEnv === 'production') throw new Error('Email service is not configured');
-    console.log(`Password reset code for ${email}: ${code}`);
+    if (environment.nodeEnv !== 'test') {
+      console.log(`[Dev] Password reset code dispatch for ${email}`);
+    }
     return;
   }
   const attachments = getAttachments();

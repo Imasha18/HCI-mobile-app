@@ -310,7 +310,46 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
         final r = riders[index];
         final id = r['_id'] as String? ?? r['id'] as String? ?? '';
         final vehicle = r['vehicleDetails'] as Map? ?? {};
-        final docs = (r['verificationDocuments'] as List?) ?? [];
+        final rawDocs = r['verificationDocuments'];
+        final List<Map<String, dynamic>> docsList = [];
+        if (rawDocs is Map) {
+          final titles = {
+            'nic': 'National ID (NIC)',
+            'drivingLicense': 'Driving License',
+            'vehicleDocument': 'Vehicle Revenue License',
+            'insurance': 'Vehicle Insurance',
+          };
+          rawDocs.forEach((key, val) {
+            if (val is Map) {
+              final kStr = key.toString();
+              final url = val['fileUrl']?.toString() ?? val['documentUrl']?.toString() ?? '';
+              final status = val['status']?.toString() ?? 'pending';
+              final reason = val['rejectionReason']?.toString();
+              final title = titles[kStr] ?? (val['fileName']?.toString() ?? kStr);
+              if (url.isNotEmpty || status != 'not_submitted') {
+                docsList.add({
+                  'key': kStr,
+                  'title': title,
+                  'url': url,
+                  'status': status,
+                  'rejectionReason': reason,
+                });
+              }
+            }
+          });
+        } else if (rawDocs is List) {
+          for (final d in rawDocs) {
+            if (d is Map) {
+              docsList.add({
+                'key': 'doc',
+                'title': d['title']?.toString() ?? 'Document',
+                'url': d['documentUrl']?.toString() ?? d['fileUrl']?.toString() ?? '',
+                'status': d['status']?.toString() ?? 'pending',
+                'rejectionReason': d['rejectionReason']?.toString(),
+              });
+            }
+          }
+        }
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -335,7 +374,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AdminTheme.textPrimary),
                         ),
                         Text(
-                          '${vehicle['type'] ?? 'Motorbike'} • ${vehicle['model'] ?? 'Honda Dio'} (${vehicle['plateNumber'] ?? 'WP BZ-4892'})',
+                          '${vehicle['type'] ?? 'Motorbike'} • ${vehicle['model'] ?? 'Standard'} (${vehicle['plateNumber'] ?? 'Not set'})',
                           style: const TextStyle(fontSize: 12, color: AdminTheme.textSecondary),
                         ),
                       ],
@@ -344,7 +383,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
                 ],
               ),
               const Divider(height: 24),
-              _itemDetail(Icons.phone_rounded, r['phone'] ?? '+94 77 555 9876'),
+              _itemDetail(Icons.phone_rounded, r['phone'] ?? 'Not provided'),
               const SizedBox(height: 6),
               _itemDetail(Icons.email_outlined, r['email'] ?? ''),
               const SizedBox(height: 12),
@@ -353,35 +392,50 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textPrimary),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: docs.isNotEmpty
-                    ? docs.map((d) {
-                        final title = (d is Map ? d['title'] : null) ?? 'Driving License';
-                        final url = (d is Map ? d['documentUrl'] : null) ?? '';
-                        return ActionChip(
-                          avatar: const Icon(Icons.badge, size: 16, color: Color(0xFF5E35B1)),
-                          label: Text(title, style: const TextStyle(fontSize: 11)),
-                          backgroundColor: AdminTheme.surface,
-                          onPressed: () => _showDocumentViewer(title, url),
-                        );
-                      }).toList()
-                    : [
-                        ActionChip(
-                          avatar: const Icon(Icons.badge, size: 16, color: Color(0xFF5E35B1)),
-                          label: const Text('Driving License (Front & Back)', style: TextStyle(fontSize: 11)),
-                          backgroundColor: AdminTheme.surface,
-                          onPressed: () => _showDocumentViewer('Driving License', 'https://homebite.lk/docs/license.pdf'),
+              if (docsList.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    'No documents uploaded yet.',
+                    style: TextStyle(fontSize: 12, color: AdminTheme.textSecondary, fontStyle: FontStyle.italic),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: docsList.map((d) {
+                    final title = d['title'] as String;
+                    final url = d['url'] as String;
+                    final status = d['status'] as String;
+                    final isRejected = status == 'rejected';
+                    final isApproved = status == 'approved';
+
+                    return ActionChip(
+                      avatar: Icon(
+                        isApproved
+                            ? Icons.check_circle
+                            : (isRejected ? Icons.error_outline : Icons.badge),
+                        size: 16,
+                        color: isApproved
+                            ? AdminTheme.statusApproved
+                            : (isRejected ? AdminTheme.statusRejected : const Color(0xFF5E35B1)),
+                      ),
+                      label: Text(
+                        '$title (${status.toUpperCase()})',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isApproved
+                              ? AdminTheme.statusApproved
+                              : (isRejected ? AdminTheme.statusRejected : AdminTheme.textPrimary),
                         ),
-                        ActionChip(
-                          avatar: const Icon(Icons.car_crash_rounded, size: 16, color: Color(0xFF5E35B1)),
-                          label: const Text('Vehicle Revenue License 2026', style: TextStyle(fontSize: 11)),
-                          backgroundColor: AdminTheme.surface,
-                          onPressed: () => _showDocumentViewer('Vehicle Revenue License', 'https://homebite.lk/docs/revenue.pdf'),
-                        ),
-                      ],
-              ),
+                      ),
+                      backgroundColor: AdminTheme.surface,
+                      onPressed: () => _showDocumentViewer(title, url.isNotEmpty ? url : 'https://homebite.lk/docs/preview.pdf'),
+                    );
+                  }).toList(),
+                ),
               const SizedBox(height: 18),
               Row(
                 children: [
@@ -394,10 +448,15 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () async {
-                        final ok = await ref.read(verificationProvider.notifier).verifyRider(id, 'approved');
-                        if (context.mounted && ok) {
+                        final res = await ref.read(verificationProvider.notifier).verifyRider(id, 'approved');
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Rider approved successfully!'), backgroundColor: AdminTheme.statusApproved),
+                            SnackBar(
+                              content: Text(res['success'] == true
+                                  ? 'Rider approved successfully!'
+                                  : res['message']?.toString() ?? 'Failed to approve rider'),
+                              backgroundColor: res['success'] == true ? AdminTheme.statusApproved : Colors.red,
+                            ),
                           );
                         }
                       },
@@ -414,14 +473,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: () async {
-                        final ok = await ref.read(verificationProvider.notifier).verifyRider(id, 'rejected');
-                        if (context.mounted && ok) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Rider application rejected'), backgroundColor: AdminTheme.statusRejected),
-                          );
-                        }
-                      },
+                      onPressed: () => _showRejectRiderDialog(context, id, r['name'] ?? 'Delivery Rider'),
                       icon: const Icon(Icons.close_rounded, size: 18),
                       label: const Text('Reject'),
                     ),
@@ -444,6 +496,154 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> with Si
           child: Text(text, style: const TextStyle(fontSize: 13, color: AdminTheme.textPrimary)),
         ),
       ],
+    );
+  }
+
+  void _showRejectRiderDialog(BuildContext context, String id, String riderName) {
+    final reasonController = TextEditingController();
+    String? selectedDocKey;
+    bool isSubmitting = false;
+    String? validationError;
+
+    final docOptions = [
+      {'key': null, 'label': 'General / All Documents'},
+      {'key': 'nic', 'label': 'National ID (NIC)'},
+      {'key': 'drivingLicense', 'label': 'Driving License'},
+      {'key': 'vehicleDocument', 'label': 'Vehicle Registration'},
+      {'key': 'insurance', 'label': 'Vehicle Insurance'},
+    ];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                'Reject Verification: $riderName',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select which document requires attention (optional):',
+                      style: TextStyle(fontSize: 12, color: AdminTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String?>(
+                      initialValue: selectedDocKey,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: docOptions.map((opt) {
+                        return DropdownMenuItem<String?>(
+                          value: opt['key'],
+                          child: Text(opt['label'] as String, style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: isSubmitting
+                          ? null
+                          : (val) {
+                              setDialogState(() {
+                                selectedDocKey = val;
+                              });
+                            },
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Rejection Reason *',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textPrimary),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 3,
+                      enabled: !isSubmitting,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Driving license image is blurry. Please re-upload a clear copy.',
+                        hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+                        errorText: validationError,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onChanged: (_) {
+                        if (validationError != null) {
+                          setDialogState(() {
+                            validationError = null;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AdminTheme.statusRejected,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final reason = reasonController.text.trim();
+                          if (reason.isEmpty) {
+                            setDialogState(() {
+                              validationError = 'Rejection reason is required.';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          final res = await ref.read(verificationProvider.notifier).verifyRider(
+                                id,
+                                'rejected',
+                                reason: reason,
+                                documentKey: selectedDocKey,
+                              );
+
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                          }
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(res['success'] == true
+                                    ? 'Verification rejected and reason sent to driver.'
+                                    : res['message']?.toString() ?? 'Failed to reject verification'),
+                                backgroundColor: res['success'] == true ? AdminTheme.statusRejected : Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Confirm Rejection'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -49,33 +49,36 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(riderProvider.notifier).register(
+    final result = await ref.read(riderProvider.notifier).register(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           phone: _phoneController.text.trim(),
           address: _addressController.text.trim(),
           vehicleType: _vehicleType,
-          vehicleModel: _vehicleModelController.text.trim().isNotEmpty
-              ? _vehicleModelController.text.trim()
-              : 'Honda Dio',
-          vehiclePlateNumber: _plateNumberController.text.trim().isNotEmpty
-              ? _plateNumberController.text.trim()
-              : 'WP BZ-4892',
+          vehicleModel: _vehicleModelController.text.trim(),
+          vehiclePlateNumber: _plateNumberController.text.trim(),
         );
 
     if (!mounted) return;
 
-    if (success) {
+    if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Rider account created successfully! Welcome to HomeBite Fleet.'),
+          content: Text('Verification code sent to your email address.'),
           backgroundColor: RiderTheme.primaryGreen,
         ),
       );
-      Navigator.pushReplacementNamed(context, AppRoutes.riderDashboard);
+      Navigator.pushNamed(
+        context,
+        AppRoutes.verifyEmail,
+        arguments: {
+          'email': _emailController.text.trim().toLowerCase(),
+          'role': 'rider',
+        },
+      );
     } else {
-      final error = ref.read(riderProvider).error ?? 'Registration failed. Please try again.';
+      final error = result['error'] ?? ref.read(riderProvider).error ?? 'Registration failed. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),

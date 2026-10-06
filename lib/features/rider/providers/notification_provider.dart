@@ -75,6 +75,10 @@ class RiderNotificationNotifier extends StateNotifier<RiderNotificationState> {
       state = state.copyWith(notifications: updated);
     } catch (_) {}
   }
+
+  void reset() {
+    state = const RiderNotificationState();
+  }
 }
 
 final riderNotificationProvider =

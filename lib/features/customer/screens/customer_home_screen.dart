@@ -17,11 +17,16 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
+class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
+    with AutomaticKeepAliveClientMixin {
   String _selectedCategory = 'All';
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final meals = ref.watch(mealProvider);
     final cooksAsync = ref.watch(cooksProvider);
     final recState = ref.watch(recommendationProvider);

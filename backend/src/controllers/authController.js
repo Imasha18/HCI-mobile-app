@@ -2,11 +2,13 @@ const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
+const PendingRegistration = require('../models/PendingRegistration');
 const generateToken = require('../utils/generateToken');
 const { sendSuccess } = require('../utils/apiResponse');
 const environment = require('../config/environment');
 const { sendVerificationCode, sendPasswordResetCode } = require('../services/emailService');
 const { notifyAdminNewVerification } = require('../services/notificationService');
+const { normalizePhone } = require('../validators/authValidator');
 
 function publicUser(user) {
   return {
@@ -16,15 +18,19 @@ function publicUser(user) {
     role: user.role,
     phone: user.phone || '',
     address: user.address || '',
-    profileImage: user.profileImage || '',
-    isVerified: user.isVerified ?? true,
+    isVerified: user.isVerified ?? (user.role === 'rider' ? false : true),
     rating: user.rating || 4.8,
     isOnline: user.isOnline ?? true,
     kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
-    vehicleDetails: user.vehicleDetails || { type: 'Motorbike', model: 'Honda Dio', plateNumber: 'WP BZ-4892' },
+    vehicleDetails: {
+      type: user.vehicleDetails?.type || 'Motorbike',
+      model: user.vehicleDetails?.model || '',
+      plateNumber: user.vehicleDetails?.plateNumber || '',
+    },
     emailVerified: user.emailVerified,
     isBlocked: user.isBlocked ?? false,
-    verificationStatus: user.verificationStatus || 'approved',
+    verificationStatus: user.verificationStatus || (user.role === 'rider' ? 'not_submitted' : 'approved'),
+    verificationDocuments: user.verificationDocuments || {},
   };
 }
 
@@ -42,24 +48,45 @@ async function register(req, res) {
   }
 
   const { name, email, password, phone, address } = req.body;
-  const existing = await User.findOne({ email: email.trim().toLowerCase() });
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail });
   if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
-  const hashedPassword = await bcrypt.hash(password, 12);
 
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const normalizedPhone = normalizePhone(phone);
   const code = createVerificationCode();
-  const user = await User.create({
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    password: hashedPassword,
-    phone: phone?.trim(),
-    address: address?.trim(),
-    role: 'customer',
-    emailVerified: false,
-    verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'),
-    verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000,
-  });
-  await sendVerificationCode(user.email, code);
-  return sendSuccess(res, { user: publicUser(user), emailVerificationRequired: true }, 'Verification code sent', 201);
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+  const expiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
+
+  // Store in temporary PendingRegistration collection; do not permanently save User until OTP verification
+  await PendingRegistration.findOneAndUpdate(
+    { email: normalizedEmail },
+    {
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      phone: normalizedPhone,
+      address: address?.trim() || '',
+      role: 'customer',
+      verificationCodeHash: codeHash,
+      verificationExpiresAt: expiresAt,
+    },
+    { upsert: true, new: true }
+  );
+
+  await sendVerificationCode(normalizedEmail, code);
+
+  return sendSuccess(res, {
+    user: {
+      name: name.trim(),
+      email: normalizedEmail,
+      role: 'customer',
+      phone: normalizedPhone,
+      address: address?.trim() || '',
+      emailVerified: false,
+    },
+    emailVerificationRequired: true,
+  }, 'Verification code sent', 201);
 }
 
 async function registerRider(req, res) {
@@ -71,29 +98,47 @@ async function registerRider(req, res) {
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: 'rider',
-      phone: phone?.trim() || '+94 77 123 4567',
-      address: address?.trim() || 'Colombo, Sri Lanka',
-      vehicleDetails: {
-        type: vehicleType?.trim() || 'Motorbike',
-        model: vehicleModel?.trim() || 'Honda Dio',
-        plateNumber: vehiclePlateNumber?.trim() || 'WP BZ-4892',
+    const normalizedPhone = normalizePhone(phone);
+    const code = createVerificationCode();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const expiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
+
+    // Store in temporary PendingRegistration collection
+    await PendingRegistration.findOneAndUpdate(
+      { email: normalizedEmail },
+      {
+        name: name.trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'rider',
+        phone: normalizedPhone,
+        address: address?.trim() || '',
+        vehicleDetails: {
+          type: vehicleType?.trim() || 'Motorbike',
+          model: vehicleModel?.trim() || '',
+          plateNumber: vehiclePlateNumber?.trim() || '',
+        },
+        verificationCodeHash: codeHash,
+        verificationExpiresAt: expiresAt,
       },
-      isVerified: true,
-      emailVerified: true,
-      verificationStatus: 'approved',
-      verificationDocuments: [
-        { title: 'Driving License (Front & Back)', documentUrl: 'https://homebite.lk/docs/license.pdf', status: 'approved' },
-        { title: 'Vehicle Revenue License 2026', documentUrl: 'https://homebite.lk/docs/revenue.pdf', status: 'approved' },
-      ],
-    });
-    notifyAdminNewVerification(user).catch(() => {});
-    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider registered successfully', 201);
+      { upsert: true, new: true }
+    );
+
+    await sendVerificationCode(normalizedEmail, code);
+
+    return sendSuccess(res, {
+      user: {
+        name: name.trim(),
+        email: normalizedEmail,
+        role: 'rider',
+        phone: normalizedPhone,
+        address: address?.trim() || '',
+        emailVerified: false,
+      },
+      emailVerificationRequired: true,
+    }, 'Verification code sent', 201);
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -108,22 +153,23 @@ async function registerCook(req, res) {
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+
     const hashedPassword = await bcrypt.hash(password, 12);
+    const normalizedPhone = normalizePhone(phone) || '+94 77 123 4567';
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
       role: 'cook',
-      phone: phone?.trim() || '+94 77 123 4567',
+      phone: normalizedPhone,
       address: address?.trim() || 'Colombo, Sri Lanka',
       kitchenName: kitchenName?.trim() || `${name.trim()}'s Kitchen`,
       isVerified: true,
       emailVerified: true,
       verificationStatus: 'approved',
-      verificationDocuments: [
-        { title: 'Food Hygiene Certificate', documentUrl: 'https://homebite.lk/cert/hygiene.pdf', status: 'approved' },
-        { title: 'National Identity Card (NIC)', documentUrl: 'https://homebite.lk/nic/front.jpg', status: 'approved' },
-      ],
+      verificationDocuments: {
+        nic: { type: 'nic', fileUrl: 'https://homebite.lk/nic/front.jpg', fileName: 'NIC', status: 'approved' },
+      },
     });
     notifyAdminNewVerification(user).catch(() => {});
     return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook registered successfully', 201);
@@ -145,22 +191,148 @@ async function login(req, res) {
   if (role && user.role !== role) {
     return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
   }
-  if (user.role === 'customer' && !user.emailVerified) {
-    return res.status(403).json({ success: false, message: 'Please verify your email before signing in' });
+  if ((user.role === 'customer' || user.role === 'rider') && !user.emailVerified) {
+    return res.status(403).json({
+      success: false,
+      message: 'Please verify your email before signing in',
+      emailVerificationRequired: true,
+      email: user.email,
+      role: user.role,
+    });
   }
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in');
 }
 
 async function verifyEmail(req, res) {
   const email = req.body.email.trim().toLowerCase();
-  const codeHash = crypto.createHash('sha256').update(req.body.code.trim()).digest('hex');
+  const code = req.body.code ? req.body.code.trim() : '';
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'Verification code is required' });
+  }
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+  // 1. Check temporary PendingRegistration collection
+  const pending = await PendingRegistration.findOne({ email });
+  if (pending) {
+    if (pending.verificationCodeHash !== codeHash) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+    }
+    if (!pending.verificationExpiresAt || pending.verificationExpiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one' });
+    }
+
+    const isRider = pending.role === 'rider';
+    const user = await User.create({
+      name: pending.name,
+      email: pending.email,
+      password: pending.password,
+      role: pending.role,
+      phone: pending.phone || '',
+      address: pending.address || '',
+      kitchenName: pending.kitchenName,
+      vehicleDetails: pending.vehicleDetails || { type: 'Motorbike', model: '', plateNumber: '' },
+      emailVerified: true,
+      isVerified: !isRider,
+      verificationStatus: isRider ? 'not_submitted' : 'approved',
+      verificationDocuments: isRider ? {
+        nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+        drivingLicense: { type: 'drivingLicense', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+        vehicleDocument: { type: 'vehicleDocument', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+        insurance: { type: 'insurance', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+      } : {},
+    });
+
+    // Cleanup temporary registration (single-use OTP)
+    await PendingRegistration.deleteOne({ _id: pending._id });
+
+    if (isRider) {
+      notifyAdminNewVerification(user).catch(() => {});
+    }
+
+    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
+  }
+
+  // 2. Fallback for existing unverified User records
   const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
-  if (!user || user.verificationCodeHash !== codeHash || !user.verificationExpiresAt || user.verificationExpiresAt.getTime() < Date.now()) return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
+  if (!user || user.verificationCodeHash !== codeHash || !user.verificationExpiresAt || user.verificationExpiresAt.getTime() < Date.now()) {
+    return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
+  }
+
   user.emailVerified = true;
   user.verificationCodeHash = undefined;
   user.verificationExpiresAt = undefined;
   await user.save();
+
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
+}
+
+async function resendVerification(req, res) {
+  try {
+    const email = req.body.email?.trim()?.toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    // 1. Check PendingRegistration
+    const pending = await PendingRegistration.findOne({ email });
+    if (pending) {
+      if (pending.verificationExpiresAt) {
+        const totalDurationMs = environment.verificationUrlMinutes * 60 * 1000;
+        const timeSinceLastCodeMs = totalDurationMs - (pending.verificationExpiresAt.getTime() - Date.now());
+        const cooldownMs = 60 * 1000;
+        if (timeSinceLastCodeMs >= 0 && timeSinceLastCodeMs < cooldownMs) {
+          const waitSeconds = Math.ceil((cooldownMs - timeSinceLastCodeMs) / 1000);
+          return res.status(429).json({
+            success: false,
+            message: `Please wait ${waitSeconds} seconds before requesting a new code`,
+          });
+        }
+      }
+
+      const code = createVerificationCode();
+      pending.verificationCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+      pending.verificationExpiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
+      await pending.save();
+
+      await sendVerificationCode(pending.email, code);
+      return sendSuccess(res, { sent: true }, 'New verification code sent');
+    }
+
+    // 2. Check User
+    const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified' });
+    }
+
+    // Cooldown check (60 seconds)
+    if (user.verificationExpiresAt) {
+      const totalDurationMs = environment.verificationUrlMinutes * 60 * 1000;
+      const timeSinceLastCodeMs = totalDurationMs - (user.verificationExpiresAt.getTime() - Date.now());
+      const cooldownMs = 60 * 1000;
+      if (timeSinceLastCodeMs >= 0 && timeSinceLastCodeMs < cooldownMs) {
+        const waitSeconds = Math.ceil((cooldownMs - timeSinceLastCodeMs) / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${waitSeconds} seconds before requesting a new code`,
+        });
+      }
+    }
+
+    const code = createVerificationCode();
+    user.verificationCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+    user.verificationExpiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
+    await user.save();
+
+    await sendVerificationCode(user.email, code);
+
+    return sendSuccess(res, { sent: true }, 'New verification code sent');
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 }
 
 async function googleLogin(req, res) {
@@ -170,7 +342,17 @@ async function googleLogin(req, res) {
   const payload = ticket.getPayload();
   if (!payload?.email || !payload.email_verified) return res.status(401).json({ success: false, message: 'A verified Google email is required' });
   let user = await User.findOne({ email: payload.email.toLowerCase() });
-  if (!user) user = await User.create({ name: payload.name || payload.email.split('@')[0], email: payload.email.toLowerCase(), password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12), role: 'customer', emailVerified: true, googleId: payload.sub, profileImage: payload.picture });
+  if (!user) {
+    user = await User.create({
+      name: payload.name || payload.email.split('@')[0],
+      email: payload.email.toLowerCase(),
+      password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+      role: 'customer',
+      emailVerified: true,
+      googleId: payload.sub,
+      profileImage: payload.picture,
+    });
+  }
   if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
 }
@@ -181,7 +363,7 @@ async function requestPasswordReset(req, res) {
   if (user) {
     const code = createVerificationCode();
     user.resetCodeHash = crypto.createHash('sha256').update(code).digest('hex');
-    user.resetExpiresAt = Date.now() + environment.verificationUrlMinutes * 60 * 1000;
+    user.resetExpiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
     await user.save();
     await sendPasswordResetCode(user.email, code);
   }
@@ -192,7 +374,9 @@ async function resetPassword(req, res) {
   const email = req.body.email.trim().toLowerCase();
   const codeHash = crypto.createHash('sha256').update(req.body.code.trim()).digest('hex');
   const user = await User.findOne({ email, role: 'customer' }).select('+resetCodeHash +resetExpiresAt');
-  if (!user || user.resetCodeHash !== codeHash || !user.resetExpiresAt || user.resetExpiresAt.getTime() < Date.now()) return res.status(400).json({ success: false, message: 'Invalid or expired password reset code' });
+  if (!user || user.resetCodeHash !== codeHash || !user.resetExpiresAt || user.resetExpiresAt.getTime() < Date.now()) {
+    return res.status(400).json({ success: false, message: 'Invalid or expired password reset code' });
+  }
   user.password = await bcrypt.hash(req.body.password, 12);
   user.resetCodeHash = undefined;
   user.resetExpiresAt = undefined;
@@ -210,11 +394,11 @@ async function updateMe(req, res) {
   const updates = {};
   if (name && typeof name === 'string' && name.trim().length >= 2) updates.name = name.trim();
   if (phone !== undefined) {
-    const { isValidPhone } = require('../validators/authValidator');
+    const { isValidPhone, normalizePhone: normPh } = require('../validators/authValidator');
     if (phone && !isValidPhone(phone)) {
       return res.status(400).json({ success: false, message: 'Enter a valid Sri Lankan phone number (e.g. 077 123 4567)' });
     }
-    updates.phone = phone.trim();
+    updates.phone = normPh(phone);
   }
   if (address !== undefined) {
     if (address && address.trim().length < 5) {
@@ -229,4 +413,17 @@ async function updateMe(req, res) {
   return sendSuccess(res, publicUser(user), 'Profile updated successfully');
 }
 
-module.exports = { register, registerCook, registerRider, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me, updateMe, publicUser };
+module.exports = {
+  register,
+  registerCook,
+  registerRider,
+  login,
+  verifyEmail,
+  resendVerification,
+  googleLogin,
+  requestPasswordReset,
+  resetPassword,
+  me,
+  updateMe,
+  publicUser,
+};

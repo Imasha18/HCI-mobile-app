@@ -414,6 +414,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
           ),
         ],
       ),
-    );
+    ).then((_) {
+      phoneCtrl.dispose();
+      addressCtrl.dispose();
+    });
   }
 }
