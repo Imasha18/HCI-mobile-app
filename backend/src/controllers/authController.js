@@ -20,6 +20,7 @@ function publicUser(user) {
     rating: user.rating || 4.8,
     isOnline: user.isOnline ?? true,
     kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
+    vehicleDetails: user.vehicleDetails || { type: 'Motorbike', model: 'Honda Dio', plateNumber: 'WP BZ-4892' },
     emailVerified: user.emailVerified,
   };
 }
@@ -47,10 +48,55 @@ async function register(req, res) {
     });
     return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook account created', 201);
   }
+  if (role === 'rider') {
+    const user = await User.create({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password: hashedPassword,
+      role: 'rider',
+      phone: req.body.phone?.trim() || '+94 77 123 4567',
+      address: req.body.address?.trim() || 'Colombo, Sri Lanka',
+      vehicleDetails: {
+        type: req.body.vehicleType?.trim() || 'Motorbike',
+        model: req.body.vehicleModel?.trim() || 'Honda Dio',
+        plateNumber: req.body.vehiclePlateNumber?.trim() || 'WP BZ-4892',
+      },
+      isVerified: true,
+      emailVerified: true,
+    });
+    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider account created', 201);
+  }
   const code = createVerificationCode();
   const user = await User.create({ name: name.trim(), email: email.trim().toLowerCase(), password: hashedPassword, role: 'customer', emailVerified: false, verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'), verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000 });
   await sendVerificationCode(user.email, code);
   return sendSuccess(res, { user: publicUser(user), emailVerificationRequired: true }, 'Verification code sent', 201);
+}
+
+async function registerRider(req, res) {
+  const { name, email, password, phone, vehicleType, vehicleModel, vehiclePlateNumber } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+  const hashedPassword = await bcrypt.hash(password, 12);
+  const user = await User.create({
+    name: name.trim(),
+    email: normalizedEmail,
+    password: hashedPassword,
+    role: 'rider',
+    phone: phone?.trim() || '+94 77 123 4567',
+    address: req.body.address?.trim() || 'Colombo, Sri Lanka',
+    vehicleDetails: {
+      type: vehicleType?.trim() || 'Motorbike',
+      model: vehicleModel?.trim() || 'Honda Dio',
+      plateNumber: vehiclePlateNumber?.trim() || 'WP BZ-4892',
+    },
+    isVerified: true,
+    emailVerified: true,
+  });
+  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider registered successfully', 201);
 }
 
 async function registerCook(req, res) {
@@ -146,4 +192,4 @@ async function me(req, res) {
   return sendSuccess(res, user);
 }
 
-module.exports = { register, registerCook, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me };
+module.exports = { register, registerCook, registerRider, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me };

@@ -12,6 +12,11 @@ const userSchema = new mongoose.Schema({
   rating: { type: Number, default: 4.8 },
   isOnline: { type: Boolean, default: true },
   kitchenName: String,
+  vehicleDetails: {
+    type: { type: String, default: 'Motorbike' },
+    model: { type: String, default: 'Honda Dio' },
+    plateNumber: { type: String, default: 'WP BZ-4892' },
+  },
   emailVerified: { type: Boolean, default: false },
   verificationCodeHash: { type: String, select: false },
   verificationExpiresAt: { type: Date, select: false },

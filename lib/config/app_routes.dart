@@ -34,4 +34,19 @@ class AppRoutes {
   static const cookEarnings = '/cook-earnings';
   static const cookProfileSettings = '/cook-profile-settings';
   static const cookNotifications = '/cook-notifications';
+
+  // Rider Module Routes
+  static const riderLogin = '/rider-login';
+  static const riderDashboard = '/rider-dashboard';
+  static const deliveryRequests = '/rider-delivery-requests';
+  static const deliveryRequestDetails = '/rider-delivery-details';
+  static const acceptDelivery = '/rider-accept-delivery';
+  static const riderPickup = '/rider-pickup';
+  static const riderNavigation = '/rider-navigation';
+  static const riderInTransit = '/rider-in-transit';
+  static const riderDeliveryConfirmation = '/rider-delivery-confirmation';
+  static const riderEarnings = '/rider-earnings';
+  static const deliveryHistory = '/rider-delivery-history';
+  static const riderProfile = '/rider-profile';
+  static const riderNotifications = '/rider-notifications';
 }
