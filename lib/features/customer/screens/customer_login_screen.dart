@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../config/app_routes.dart';
+import '../../../config/api_config.dart';
 import '../../../config/constants.dart';
-import '../../../models/user_model.dart';
-import '../../../services/google_auth_service.dart';
 import '../../admin/providers/admin_provider.dart';
 import '../../admin/services/admin_session_manager.dart';
 import '../providers/customer_provider.dart';
@@ -21,7 +21,6 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -36,48 +35,43 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
         .read(customerProvider.notifier)
         .login(_emailController.text, _passwordController.text);
     if (user != null && mounted) {
-      await _navigateForRole(user);
-    }
-  }
-
-  /// Routes using the role returned by the backend, never a client guess.
-  Future<void> _navigateForRole(UserModel user) async {
-    if (user.role == 'admin') {
-      ref.read(adminProvider.notifier).setAdminUser(user.toJson());
-      await AdminSessionManager().startSession();
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+      if (user.role == 'admin') {
+        ref.read(adminProvider.notifier).setAdminUser(user.toJson());
+        await AdminSessionManager().startSession();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+        }
+      } else if (user.role == 'cook') {
+        Navigator.pushReplacementNamed(context, AppRoutes.cookDashboard);
+      } else if (user.role == 'rider') {
+        Navigator.pushReplacementNamed(context, AppRoutes.riderDashboard);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
       }
-    } else if (user.role == 'cook') {
-      Navigator.pushReplacementNamed(context, AppRoutes.cookDashboard);
-    } else if (user.role == 'rider') {
-      Navigator.pushReplacementNamed(context, AppRoutes.riderDashboard);
-    } else {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
     }
   }
 
   Future<void> _googleLogin() async {
-    if (_googleLoading) return;
-    setState(() => _googleLoading = true);
     try {
-      // Called directly from the tap handler so browsers allow the popup.
-      final credential = await GoogleAuthService.instance.signIn();
-      if (credential == null) return; // user cancelled: no error shown
-
-      final user =
-          await ref.read(customerProvider.notifier).googleLogin(credential);
-      if (user != null && mounted) {
-        await _navigateForRole(user);
+      final account = await GoogleSignIn(
+        serverClientId: ApiConfig.googleClientId,
+      ).signIn();
+      final idToken = (await account?.authentication)?.idToken;
+      if (idToken == null) {
+        return;
       }
-    } on GoogleAuthException catch (error) {
+      final success = await ref
+          .read(customerProvider.notifier)
+          .googleLogin(idToken);
+      if (success && mounted) {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      }
+    } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign-in failed: $error')),
+        );
       }
-    } finally {
-      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -172,7 +166,7 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
                   ),
                 ),
               FilledButton(
-                onPressed: state.isLoading || _googleLoading ? null : _login,
+                onPressed: state.isLoading ? null : _login,
                 child: state.isLoading
                     ? const SizedBox.square(
                         dimension: 22,
@@ -193,17 +187,9 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed:
-                    state.isLoading || _googleLoading ? null : _googleLogin,
-                icon: _googleLoading
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.g_mobiledata_rounded, size: 28),
-                label: Text(
-                  _googleLoading ? 'Signing in…' : 'Continue with Google',
-                ),
+                onPressed: state.isLoading ? null : _googleLogin,
+                icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
+                label: const Text('Continue with Google'),
               ),
               const SizedBox(height: 20),
               TextButton(
