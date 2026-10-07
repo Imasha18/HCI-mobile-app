@@ -106,7 +106,7 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushNamed(context, AppRoutes.roleSelection);
+                        Navigator.pushNamed(context, AppRoutes.onboarding);
                       },
                       child: const Text(
                         'Get Started',
