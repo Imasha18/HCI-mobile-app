@@ -149,9 +149,12 @@ class RiderNotifier extends StateNotifier<RiderState> {
     }
   }
 
-  Future<void> fetchDashboard() async {
+  Future<void> fetchDashboard({bool forceRefresh = false}) async {
     try {
-      final response = await _client.dio.get('/rider/dashboard');
+      final response = await _client.getCached(
+        '/rider/dashboard',
+        forceRefresh: forceRefresh,
+      );
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
         final riderInfo = data['rider'] as Map<String, dynamic>?;
@@ -165,9 +168,12 @@ class RiderNotifier extends StateNotifier<RiderState> {
     } catch (_) {}
   }
 
-  Future<void> fetchProfile() async {
+  Future<void> fetchProfile({bool forceRefresh = false}) async {
     try {
-      final response = await _client.dio.get('/rider/profile');
+      final response = await _client.getCached(
+        '/rider/profile',
+        forceRefresh: forceRefresh,
+      );
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
         state = state.copyWith(
