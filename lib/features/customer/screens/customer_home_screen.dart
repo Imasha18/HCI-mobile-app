@@ -1,10 +1,11 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
+import '../../../core/widgets/app_cached_image.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../../../models/meal_model.dart';
-import '../../../services/api_client.dart';
+import '../providers/cooks_provider.dart';
 import '../providers/meal_provider.dart';
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final meals = ref.watch(mealProvider);
+    final cooksAsync = ref.watch(cooksProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Column(
@@ -40,202 +43,207 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-        children: [
-          Text(
-            'Good evening.',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const Text('What are you craving today?'),
-          const SizedBox(height: 22),
-          TextField(
-            readOnly: true,
-            onTap: () => Navigator.pushNamed(context, AppRoutes.search),
-            decoration: const InputDecoration(
-              hintText: 'Search meals, cuisines, ingredients...',
-              prefixIcon: Icon(Icons.search),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 8,
-            children: ['All', 'Rice', 'Curry', 'Kottu', 'Healthy']
-                .map(
-                  (category) => ChoiceChip(
-                    label: Text(category),
-                    selected: _selectedCategory == category,
-                    selectedColor: const Color(0xFFFFF3E0),
-                    labelStyle: TextStyle(
-                      color: _selectedCategory == category
-                          ? const Color(0xFFFF9800)
-                          : Colors.black87,
-                      fontWeight: _selectedCategory == category
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() => _selectedCategory = category);
-                        ref.read(mealProvider.notifier).fetchMeals(
-                              category: category == 'All' ? null : category,
-                            );
-                      }
-                    },
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Popular Near You',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              Text(
-                '$_selectedCategory Dishes',
-                style: const TextStyle(
-                  color: Color(0xFFFF9800),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+      body: RefreshIndicator(
+        color: const Color(0xFFFF9800),
+        onRefresh: () async {
+          await Future.wait([
+            ref.read(mealProvider.notifier).fetchMeals(
+                  category: _selectedCategory == 'All' ? null : _selectedCategory,
+                  forceRefresh: true,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          meals.when(
-            data: (items) => _mealList(context, items),
-            error: (error, _) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(error.toString().replaceFirst('Exception: ', '')),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => ref.invalidate(mealProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
+            ref.read(cooksProvider.notifier).fetchCooks(forceRefresh: true),
+          ]);
+        },
+        child: ListView(
+          key: const PageStorageKey<String>('customer_home_scroll'),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+          children: [
+            Text(
+              'Good evening.',
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: CircularProgressIndicator(),
+            const Text('What are you craving today?'),
+            const SizedBox(height: 22),
+            TextField(
+              readOnly: true,
+              onTap: () => Navigator.pushNamed(context, AppRoutes.search),
+              decoration: const InputDecoration(
+                hintText: 'Search meals, cuisines, ingredients...',
+                prefixIcon: Icon(Icons.search),
               ),
             ),
-          ),
-          const SizedBox(height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Top Home Cook Kitchens',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const Text(
-                'Verified Suppliers',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          FutureBuilder<Response<dynamic>>(
-            future: ApiClient().dio.get('/cooks'),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              final cooks =
-                  (snapshot.data?.data?['data'] as List<dynamic>?) ?? [];
-              if (cooks.isEmpty) {
-                return const Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Color(0xFFFFF3E0),
-                      child: Icon(Icons.storefront, color: Color(0xFFFF9800)),
-                    ),
-                    title: Text('Local Home Cook Kitchens'),
-                    subtitle: Text('Fresh homemade meals from local home cooks'),
-                  ),
-                );
-              }
-
-              return Column(
-                children: cooks.take(4).map((cook) {
-                  final cookMap = cook as Map<String, dynamic>;
-                  final cookId =
-                      (cookMap['id'] ?? cookMap['_id'] ?? '').toString();
-                  final kitchenName = (cookMap['kitchenName'] as String?)
-                              ?.isNotEmpty ==
-                          true
-                      ? cookMap['kitchenName'] as String
-                      : '${cookMap['name'] ?? 'Home'}\'s Kitchen';
-                  final cookName = cookMap['name'] as String? ?? 'Home Cook';
-                  final rating = (cookMap['rating'] ?? 4.8).toString();
-                  final address =
-                      cookMap['address'] as String? ?? 'Colombo, Sri Lanka';
-                  final mealCount = cookMap['mealCount'] ?? 0;
-                  final profileImage = cookMap['profileImage'] as String?;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFFFFF3E0),
-                        backgroundImage: profileImage != null &&
-                                profileImage.isNotEmpty
-                            ? NetworkImage(profileImage)
-                            : null,
-                        child: profileImage == null || profileImage.isEmpty
-                            ? const Icon(Icons.person, color: Color(0xFFFF9800))
-                            : null,
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8,
+              children: ['All', 'Rice', 'Curry', 'Kottu', 'Healthy']
+                  .map(
+                    (category) => ChoiceChip(
+                      label: Text(category),
+                      selected: _selectedCategory == category,
+                      selectedColor: const Color(0xFFFFF3E0),
+                      labelStyle: TextStyle(
+                        color: _selectedCategory == category
+                            ? const Color(0xFFFF9800)
+                            : Colors.black87,
+                        fontWeight: _selectedCategory == category
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
-                      title: Text(
-                        kitchenName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        '$cookName  ·  $address\n$mealCount home-cooked dishes available',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, size: 16, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            rating,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        if (cookId.isNotEmpty) {
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.cookProfile,
-                            arguments: cookId,
-                          );
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() => _selectedCategory = category);
+                          ref.read(mealProvider.notifier).fetchMeals(
+                                category: category == 'All' ? null : category,
+                              );
                         }
                       },
                     ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Popular Near You',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                Text(
+                  '$_selectedCategory Dishes',
+                  style: const TextStyle(
+                    color: Color(0xFFFF9800),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            meals.when(
+              data: (items) => _mealList(context, items),
+              error: (error, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(error.toString().replaceFirst('Exception: ', '')),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => ref.read(mealProvider.notifier).fetchMeals(
+                          category:
+                              _selectedCategory == 'All' ? null : _selectedCategory,
+                          forceRefresh: true,
+                        ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+              loading: () => Column(
+                children: List.generate(4, (_) => const MealTileSkeleton()),
+              ),
+            ),
+            const SizedBox(height: 28),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Top Home Cook Kitchens',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const Text(
+                  'Verified Suppliers',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            cooksAsync.when(
+              data: (cooks) {
+                if (cooks.isEmpty) {
+                  return const Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Color(0xFFFFF3E0),
+                        child: Icon(Icons.storefront, color: Color(0xFFFF9800)),
+                      ),
+                      title: Text('Local Home Cook Kitchens'),
+                      subtitle:
+                          Text('Fresh homemade meals from local home cooks'),
+                    ),
                   );
-                }).toList(),
-              );
-            },
-          ),
-        ],
+                }
+
+                return Column(
+                  children: cooks.take(4).map((cookMap) {
+                    final cookId =
+                        (cookMap['id'] ?? cookMap['_id'] ?? '').toString();
+                    final kitchenName = (cookMap['kitchenName'] as String?)
+                                ?.isNotEmpty ==
+                            true
+                        ? cookMap['kitchenName'] as String
+                        : '${cookMap['name'] ?? 'Home'}\'s Kitchen';
+                    final cookName =
+                        cookMap['name'] as String? ?? 'Home Cook';
+                    final rating = (cookMap['rating'] ?? 4.8).toString();
+                    final address =
+                        cookMap['address'] as String? ?? 'Colombo, Sri Lanka';
+                    final mealCount = cookMap['mealCount'] ?? 0;
+                    final profileImage = cookMap['profileImage'] as String?;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: AppCachedImage(
+                          imageUrl: profileImage,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          fallbackIcon: Icons.person,
+                        ),
+                        title: Text(
+                          kitchenName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '$cookName  ·  $address\n$mealCount home-cooked dishes available',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, size: 16, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(
+                              rating,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          if (cookId.isNotEmpty) {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.cookProfile,
+                              arguments: cookId,
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => Column(
+                children: List.generate(3, (_) => const UserCardSkeleton()),
+              ),
+              error: (err, _) => const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
@@ -304,33 +312,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             child: ListTile(
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        width: 54,
-                        height: 54,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 54,
-                          height: 54,
-                          color: const Color(0xFFFFF3E0),
-                          child: const Icon(
-                            Icons.restaurant,
-                            color: Color(0xFFFF9800),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        width: 54,
-                        height: 54,
-                        color: const Color(0xFFFFF3E0),
-                        child: const Icon(
-                          Icons.restaurant,
-                          color: Color(0xFFFF9800),
-                        ),
-                      ),
+              leading: AppCachedImage(
+                imageUrl: imageUrl,
+                width: 54,
+                height: 54,
+                borderRadius: 10,
+                fallbackIcon: Icons.restaurant,
               ),
               title: Text(
                 meal.name,

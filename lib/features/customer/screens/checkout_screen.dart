@@ -21,6 +21,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _placeOrder() async {
+    if (_loading) return;
     final cart = ref.read(cartProvider).valueOrNull;
     if (cart == null || cart.items.isEmpty || _address.text.trim().isEmpty) {
       return;

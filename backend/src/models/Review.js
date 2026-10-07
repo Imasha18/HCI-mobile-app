@@ -7,4 +7,7 @@ const reviewSchema = new mongoose.Schema({
   comment: String,
 }, { timestamps: true });
 
+reviewSchema.index({ meal: 1, createdAt: -1 });
+reviewSchema.index({ customer: 1 });
+
 module.exports = mongoose.model('Review', reviewSchema);

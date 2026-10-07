@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
+import '../../../core/widgets/app_cached_image.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/meal_provider.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -12,11 +16,21 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
+  Timer? _debounceTimer;
   String? _category;
+
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(String query) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      _search();
+    });
   }
 
   void _search() => ref
@@ -33,6 +47,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _controller,
+              onChanged: _onQueryChanged,
               onSubmitted: (_) => _search(),
               decoration: InputDecoration(
                 hintText: 'Meals, cuisines, ingredients',
@@ -72,61 +87,58 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           Expanded(
             child: meals.when(
-              data: (items) => ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final meal = items[index];
-                  final imageUrl = meal.imageUrl;
-                  return ListTile(
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: imageUrl != null && imageUrl.isNotEmpty
-                          ? Image.network(
-                              imageUrl,
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const CircleAvatar(
-                                backgroundColor: Color(0xFFFFF3E0),
-                                child: Icon(
-                                  Icons.restaurant,
-                                  color: Color(0xFFFF9800),
-                                ),
-                              ),
-                            )
-                          : const CircleAvatar(
-                              backgroundColor: Color(0xFFFFF3E0),
-                              child: Icon(
-                                Icons.restaurant,
-                                color: Color(0xFFFF9800),
-                              ),
-                            ),
-                    ),
-                    title: Text(
-                      meal.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '${meal.cookName ?? 'Home Cook Kitchen'} · ${meal.rating ?? '4.8'} ★',
-                    ),
-                    trailing: Text(
-                      'Rs. ${meal.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFFF9800),
-                      ),
-                    ),
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.mealDetails,
-                      arguments: meal.id,
+              data: (items) {
+                if (items.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Text('No meals found matching your search.'),
                     ),
                   );
-                },
-              ),
+                }
+                return ListView.builder(
+                  key: const PageStorageKey<String>('search_results_scroll'),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final meal = items[index];
+                    final imageUrl = meal.imageUrl;
+                    return ListTile(
+                      leading: AppCachedImage(
+                        imageUrl: imageUrl,
+                        width: 44,
+                        height: 44,
+                        borderRadius: 8,
+                        fallbackIcon: Icons.restaurant,
+                      ),
+                      title: Text(
+                        meal.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        '${meal.cookName ?? 'Home Cook Kitchen'} · ${meal.rating ?? '4.8'} ★',
+                      ),
+                      trailing: Text(
+                        'Rs. ${meal.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF9800),
+                        ),
+                      ),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.mealDetails,
+                        arguments: meal.id,
+                      ),
+                    );
+                  },
+                );
+              },
               error: (error, _) =>
                   Center(child: Text('Unable to load meals: $error')),
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => ListView.builder(
+                itemCount: 6,
+                itemBuilder: (context, index) => const MealTileSkeleton(),
+              ),
             ),
           ),
         ],

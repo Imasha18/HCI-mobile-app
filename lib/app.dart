@@ -13,7 +13,7 @@ class DeliveryApp extends StatelessWidget {
       title: 'HomeBite',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: AppRoutes.login,
+      initialRoute: AppRoutes.splash,
       onGenerateRoute: RouteGenerator.generate,
     );
   }

@@ -26,6 +26,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   Future<void> _pay() async {
+    if (_loading) return;
     if (_number.text.trim().length < 12 ||
         _expiry.text.trim().isEmpty ||
         _cvv.text.trim().length < 3) {
