@@ -48,18 +48,20 @@ class _ShimmerBoxState extends State<ShimmerBox>
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return Opacity(
-          opacity: _animation.value,
-          child: Container(
-            width: widget.width,
-            height: widget.height,
-            decoration: widget.shape != null
-                ? ShapeDecoration(color: const Color(0xFFE5E7EB), shape: widget.shape!)
-                : BoxDecoration(
-                    color: const Color(0xFFE5E7EB),
-                    borderRadius: BorderRadius.circular(widget.borderRadius),
-                  ),
-          ),
+        final shimmerColor = Color.lerp(
+          const Color(0xFFE5E7EB),
+          const Color(0xFFF3F4F6),
+          (_animation.value - 0.35) / 0.5,
+        )!;
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: widget.shape != null
+              ? ShapeDecoration(color: shimmerColor, shape: widget.shape!)
+              : BoxDecoration(
+                  color: shimmerColor,
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                ),
         );
       },
     );
@@ -96,7 +98,7 @@ class MealCardSkeleton extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(12),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
@@ -105,12 +107,12 @@ class MealCardSkeleton extends StatelessWidget {
               borderRadius: 14,
             ),
           ),
-          const SizedBox(height: 10),
-          const ShimmerBox(width: 120, height: 14, borderRadius: 6),
-          const SizedBox(height: 6),
-          const ShimmerBox(width: 80, height: 12, borderRadius: 6),
-          const SizedBox(height: 8),
-          const Row(
+          SizedBox(height: 10),
+          ShimmerBox(width: 120, height: 14, borderRadius: 6),
+          SizedBox(height: 6),
+          ShimmerBox(width: 80, height: 12, borderRadius: 6),
+          SizedBox(height: 8),
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               ShimmerBox(width: 60, height: 14, borderRadius: 6),

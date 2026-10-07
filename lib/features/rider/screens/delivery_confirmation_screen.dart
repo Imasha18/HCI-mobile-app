@@ -218,9 +218,9 @@ class _DeliveryConfirmationScreenState
                             width: 1.5,
                           ),
                         ),
-                        child: Column(
+                        child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
+                          children: [
                             Icon(Icons.camera_alt_rounded, size: 36, color: RiderTheme.primaryGreen),
                             SizedBox(height: 8),
                             Text(

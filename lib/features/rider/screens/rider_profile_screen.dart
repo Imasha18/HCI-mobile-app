@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -101,7 +102,11 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
           ],
         );
       },
-    );
+    ).whenComplete(() {
+      typeController.dispose();
+      modelController.dispose();
+      plateController.dispose();
+    });
   }
 
   void _showBankAccountModal(BuildContext context) {
@@ -127,27 +132,27 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: RiderTheme.primaryGreen.withValues(alpha: 0.3)),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text('Bank', style: TextStyle(color: RiderTheme.textMuted)),
                         Text('Commercial Bank of Ceylon', style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    const Divider(height: 20),
+                    Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text('Branch', style: TextStyle(color: RiderTheme.textMuted)),
                         Text('Kollupitiya (Code 032)', style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
-                    const Divider(height: 20),
+                    Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
+                      children: [
                         Text('Account No.', style: TextStyle(color: RiderTheme.textMuted)),
                         Text('8001 •••• •••• 4912', style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
@@ -256,29 +261,34 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
         foregroundColor: RiderTheme.textDark,
         elevation: 0.5,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Profile Header Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: RiderTheme.softShadow,
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 34,
-                  backgroundColor: RiderTheme.secondaryGreen,
-                  backgroundImage: profileImage != null && profileImage.isNotEmpty
-                      ? NetworkImage(profileImage)
-                      : null,
-                  child: profileImage == null || profileImage.isEmpty
-                      ? const Icon(Icons.person, color: RiderTheme.primaryGreen, size: 36)
-                      : null,
-                ),
+      body: RefreshIndicator(
+        color: RiderTheme.primaryGreen,
+        onRefresh: () => ref.read(riderProvider.notifier).fetchProfile(forceRefresh: true),
+        child: ListView(
+          key: const PageStorageKey<String>('rider_profile_scroll'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            // Profile Header Card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: RiderTheme.softShadow,
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 34,
+                    backgroundColor: RiderTheme.secondaryGreen,
+                    backgroundImage: profileImage != null && profileImage.isNotEmpty
+                        ? CachedNetworkImageProvider(profileImage)
+                        : null,
+                    child: profileImage == null || profileImage.isEmpty
+                        ? const Icon(Icons.person, color: RiderTheme.primaryGreen, size: 36)
+                        : null,
+                  ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -465,6 +475,7 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
           ),
           const SizedBox(height: 20),
         ],
+      ),
       ),
     );
   }
