@@ -35,3 +35,19 @@ test('forgot password routes reject missing credentials', async () => {
 
   expect(response.statusCode).toBe(400);
 });
+
+test('cook registration rejects missing credentials', async () => {
+  const response = await request(app)
+    .post('/api/auth/register-cook')
+    .send({ email: '' });
+
+  expect(response.statusCode).toBe(400);
+});
+
+test('rider registration rejects missing credentials', async () => {
+  const response = await request(app)
+    .post('/api/auth/register-rider')
+    .send({ email: '' });
+
+  expect(response.statusCode).toBe(400);
+});
