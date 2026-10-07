@@ -55,6 +55,11 @@ import '../features/admin/screens/rider_management_screen.dart';
 import '../features/admin/screens/verification_screen.dart';
 import '../features/admin/screens/meal_management_screen.dart';
 import '../features/admin/screens/order_monitoring_screen.dart';
+import '../features/admin/screens/complaint_screen.dart';
+import '../features/admin/screens/reports_screen.dart';
+import '../features/admin/screens/statistics_screen.dart';
+import '../features/admin/screens/admin_notification_screen.dart';
+import '../features/admin/screens/admin_profile_screen.dart';
 
 class RouteGenerator {
   static Route<dynamic> generate(RouteSettings settings) {
@@ -161,6 +166,11 @@ class RouteGenerator {
       AppRoutes.adminVerification => const VerificationScreen(),
       AppRoutes.adminMeals => const MealManagementScreen(),
       AppRoutes.adminOrders => const OrderMonitoringScreen(),
+      AppRoutes.adminComplaints => const ComplaintScreen(),
+      AppRoutes.adminReports => const ReportsScreen(),
+      AppRoutes.adminStatistics => const StatisticsScreen(),
+      AppRoutes.adminNotifications => const AdminNotificationScreen(),
+      AppRoutes.adminProfile => const AdminProfileScreen(),
       _ => const Scaffold(body: Center(child: Text('Page not found'))),
     };
     return MaterialPageRoute(builder: (_) => page, settings: settings);
