@@ -46,10 +46,10 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
               decoration: AdminTheme.cardDecoration(),
               child: Column(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 36,
                     backgroundColor: AdminTheme.primaryLight,
-                    child: const Icon(Icons.admin_panel_settings_rounded, color: AdminTheme.primary, size: 40),
+                    child: Icon(Icons.admin_panel_settings_rounded, color: AdminTheme.primary, size: 40),
                   ),
                   const SizedBox(height: 12),
                   Text(

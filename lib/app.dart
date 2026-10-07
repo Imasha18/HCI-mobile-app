@@ -15,7 +15,7 @@ class DeliveryApp extends StatelessWidget {
       theme: AppTheme.light,
       scrollBehavior: const ScrollBehavior().copyWith(
         overscroll: false,
-        physics: ClampingScrollPhysics(),
+        physics: const ClampingScrollPhysics(),
       ),
       initialRoute: AppRoutes.splash,
       onGenerateRoute: RouteGenerator.generate,

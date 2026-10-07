@@ -190,10 +190,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         decoration: AdminTheme.cardDecoration(),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            const CircleAvatar(
                               radius: 20,
                               backgroundColor: AdminTheme.primaryLight,
-                              child: const Icon(Icons.restaurant, color: AdminTheme.primary, size: 20),
+                              child: Icon(Icons.restaurant, color: AdminTheme.primary, size: 20),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -242,10 +242,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         decoration: AdminTheme.cardDecoration(),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            const CircleAvatar(
                               radius: 20,
-                              backgroundColor: const Color(0xFFEDE7F6),
-                              child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF5E35B1), size: 20),
+                              backgroundColor: Color(0xFFEDE7F6),
+                              child: Icon(Icons.two_wheeler_rounded, color: Color(0xFF5E35B1), size: 20),
                             ),
                             const SizedBox(width: 12),
                             Expanded(

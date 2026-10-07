@@ -23,7 +23,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -234,10 +238,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AdminTheme.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AdminTheme.textPrimary, size: 20),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: const Text(
           'User Management',
           style: TextStyle(color: AdminTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 18),
@@ -245,7 +251,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AdminTheme.textPrimary),
-            onPressed: () => ref.read(userManagementProvider.notifier).loadAllUsers(),
+            onPressed: () => ref.read(userManagementProvider.notifier).loadAllUsers(forceRefresh: true),
           ),
         ],
         bottom: PreferredSize(
@@ -292,7 +298,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
           Expanded(
             child: RefreshIndicator(
               color: AdminTheme.primary,
-              onRefresh: () => ref.read(userManagementProvider.notifier).loadAllUsers(),
+              onRefresh: () => ref.read(userManagementProvider.notifier).loadAllUsers(forceRefresh: true),
               child: state.isLoading && state.users.isEmpty
                   ? ListView.builder(
                       padding: const EdgeInsets.all(16),
@@ -423,7 +429,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
                                       child: Row(
                                         children: [
                                           Icon(isBlocked ? Icons.check_circle_outline : Icons.block, size: 18),
-                                          SizedBox(width: 8),
+                                          const SizedBox(width: 8),
                                           Text(isBlocked ? 'Unblock User' : 'Block User'),
                                         ],
                                       ),
