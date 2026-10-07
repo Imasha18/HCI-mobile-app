@@ -109,12 +109,12 @@ class _CookProfileScreenState extends ConsumerState<CookProfileScreen> {
     final state = ref.watch(cookProvider);
     final cook = state.cook;
 
-    final cookName = cook?['name'] as String? ?? 'Chef Sunethra Silva';
-    final kitchenName = cook?['kitchenName'] as String? ?? "Amma's Spice Kitchen";
-    final phone = cook?['phone'] as String? ?? '+94 77 234 5678';
-    final address = cook?['address'] as String? ?? '45/2 Galle Road, Colombo 03, Sri Lanka';
+    final cookName = cook?['name'] as String? ?? 'Home Cook';
+    final kitchenName = cook?['kitchenName'] as String? ?? (cook?['name'] != null ? "${cook!['name']}'s Kitchen" : 'Home Kitchen');
+    final phone = cook?['phone'] as String? ?? '';
+    final address = cook?['address'] as String? ?? '';
     final profileImage = cook?['profileImage'] as String? ?? '';
-    final rating = (cook?['rating'] as num?)?.toDouble() ?? 4.9;
+    final rating = (cook?['rating'] as num?)?.toDouble() ?? 5.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FB),
