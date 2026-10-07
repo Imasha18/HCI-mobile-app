@@ -9,5 +9,6 @@ const reviewSchema = new mongoose.Schema({
 
 reviewSchema.index({ meal: 1, createdAt: -1 });
 reviewSchema.index({ customer: 1 });
+reviewSchema.index({ customer: 1, meal: 1 });
 
 module.exports = mongoose.model('Review', reviewSchema);

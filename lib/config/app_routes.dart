@@ -18,6 +18,7 @@ class AppRoutes {
   static const orders = '/orders';
   static const review = '/review';
   static const profile = '/profile';
+  static const foodPreferences = '/food-preferences';
   static const notifications = '/notifications';
   static const verifyEmail = '/verify-email';
   static const forgotPassword = '/forgot-password';
