@@ -7,7 +7,9 @@ const { validateAuth, validateRegistration, validatePasswordReset } = require('.
 const router = express.Router();
 router.post('/register', validateBody(validateRegistration), register);
 router.post('/register-cook', registerCook);
+router.post('/register/cook', registerCook);
 router.post('/register-rider', registerRider);
+router.post('/register/rider', registerRider);
 router.post('/login', validateBody(validateAuth), login);
 router.post('/verify-email', verifyEmail);
 router.post('/google', googleLogin);

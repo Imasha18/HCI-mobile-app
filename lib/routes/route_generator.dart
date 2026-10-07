@@ -22,6 +22,7 @@ import '../features/customer/screens/review_screen.dart';
 import '../features/customer/screens/customer_profile_screen.dart';
 import '../features/customer/screens/notification_screen.dart';
 import '../features/cook/screens/cook_login_screen.dart';
+import '../features/cook/screens/cook_register_screen.dart';
 import '../features/cook/screens/cook_dashboard_screen.dart';
 import '../features/cook/screens/manage_menu_screen.dart';
 import '../features/cook/screens/add_meal_screen.dart';
@@ -34,6 +35,7 @@ import '../features/cook/screens/cook_earnings_screen.dart';
 import '../features/cook/screens/cook_profile_screen.dart' as cook;
 import '../features/cook/screens/cook_notifications_screen.dart';
 import '../features/rider/screens/rider_login_screen.dart';
+import '../features/rider/screens/rider_register_screen.dart';
 import '../features/rider/screens/rider_dashboard_screen.dart';
 import '../features/rider/screens/delivery_requests_screen.dart';
 import '../features/rider/screens/delivery_request_details_screen.dart';
@@ -69,8 +71,10 @@ class RouteGenerator {
       AppRoutes.login => const CustomerLoginScreen(),
       AppRoutes.customerLogin => const CustomerLoginScreen(),
       AppRoutes.cookLogin => const CookLoginScreen(),
+      AppRoutes.cookRegister => const CookRegisterScreen(),
       AppRoutes.cookDashboard => const CookDashboardScreen(),
       AppRoutes.riderLogin => const RiderLoginScreen(),
+      AppRoutes.riderRegister => const RiderRegisterScreen(),
       AppRoutes.riderDashboard => const RiderDashboardScreen(),
       AppRoutes.deliveryRequests => const DeliveryRequestsScreen(),
       AppRoutes.deliveryRequestDetails => DeliveryRequestDetailsScreen(
