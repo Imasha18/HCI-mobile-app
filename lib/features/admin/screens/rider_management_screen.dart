@@ -257,10 +257,10 @@ class _RiderManagementScreenState extends ConsumerState<RiderManagementScreen> {
                               decoration: AdminTheme.cardDecoration(),
                               child: Row(
                                 children: [
-                                  CircleAvatar(
+                                  const CircleAvatar(
                                     radius: 24,
-                                    backgroundColor: const Color(0xFFEDE7F6),
-                                    child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFF5E35B1), size: 24),
+                                    backgroundColor: Color(0xFFEDE7F6),
+                                    child: Icon(Icons.two_wheeler_rounded, color: Color(0xFF5E35B1), size: 24),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
