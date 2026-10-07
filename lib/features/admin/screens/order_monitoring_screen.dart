@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/order_management_provider.dart';
 import '../theme/admin_theme.dart';
 
@@ -245,16 +246,24 @@ class _OrderMonitoringScreenState extends ConsumerState<OrderMonitoringScreen> w
             ),
           ),
           Expanded(
-            child: state.isLoading && state.orders.isEmpty
-                ? const Center(child: CircularProgressIndicator(color: AdminTheme.primary))
-                : filteredOrders.isEmpty
-                    ? const Center(
-                        child: Text('No orders found in this view', style: TextStyle(color: AdminTheme.textSecondary)),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filteredOrders.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+            child: RefreshIndicator(
+              color: AdminTheme.primary,
+              onRefresh: () => ref.read(orderManagementProvider.notifier).loadOrders(),
+              child: state.isLoading && state.orders.isEmpty
+                  ? ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 5,
+                      itemBuilder: (context, index) => const OrderCardSkeleton(),
+                    )
+                  : filteredOrders.isEmpty
+                      ? const Center(
+                          child: Text('No orders found in this view', style: TextStyle(color: AdminTheme.textSecondary)),
+                        )
+                      : ListView.separated(
+                          key: const PageStorageKey<String>('admin_orders_scroll'),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredOrders.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final o = filteredOrders[index];
                           final id = o['_id'] as String? ?? '';
@@ -340,6 +349,7 @@ class _OrderMonitoringScreenState extends ConsumerState<OrderMonitoringScreen> w
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

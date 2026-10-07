@@ -83,12 +83,27 @@ async function getRiderDashboard(req, res) {
   });
 }
 
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
+
 // GET /api/rider/deliveries (History)
 async function getRiderDeliveries(req, res) {
   const riderId = req.user.id;
   const filter = { rider: riderId };
   if (req.query.status) {
     filter.status = req.query.status;
+  }
+
+  if (req.query.page || req.query.limit) {
+    const { page, limit, skip } = parsePagination(req.query, 10);
+    const total = await Delivery.countDocuments(filter);
+    const deliveries = await Delivery.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('orderId')
+      .populate('cookId', 'name kitchenName phone address')
+      .populate('customerId', 'name phone address')
+      .skip(skip)
+      .limit(limit);
+    return sendSuccess(res, deliveries, 'Success', 200, buildPaginationMeta(page, limit, total, deliveries.length));
   }
 
   const deliveries = await Delivery.find(filter)

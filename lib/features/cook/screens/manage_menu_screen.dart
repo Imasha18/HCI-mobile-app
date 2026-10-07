@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
 import '../../../config/constants.dart';
+import '../../../core/widgets/app_cached_image.dart';
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/meal_management_provider.dart';
 import '../theme/cook_theme.dart';
 
@@ -135,8 +137,10 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
             // Meals List
             Expanded(
               child: state.isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: CookTheme.primaryOrange),
+                  ? ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                      itemCount: 4,
+                      itemBuilder: (context, index) => const OrderCardSkeleton(),
                     )
                   : filteredMeals.isEmpty
                       ? Center(
@@ -173,6 +177,7 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
                           ),
                         )
                       : ListView.builder(
+                          key: const PageStorageKey<String>('cook_manage_menu_scroll'),
                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                           itemCount: filteredMeals.length,
                           itemBuilder: (context, index) {
@@ -200,28 +205,12 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         // Meal Image
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(14),
-                                          child: Container(
-                                            width: 84,
-                                            height: 84,
-                                            color: CookTheme.secondaryOrange,
-                                            child: imageUrl.isNotEmpty
-                                                ? Image.network(
-                                                    imageUrl,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context, error, stackTrace) => const Icon(
-                                                      Icons.fastfood_rounded,
-                                                      color: CookTheme.primaryOrange,
-                                                      size: 36,
-                                                    ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.fastfood_rounded,
-                                                    color: CookTheme.primaryOrange,
-                                                    size: 36,
-                                                  ),
-                                          ),
+                                        AppCachedImage(
+                                          imageUrl: imageUrl,
+                                          width: 84,
+                                          height: 84,
+                                          borderRadius: 14,
+                                          fallbackIcon: Icons.fastfood_rounded,
                                         ),
                                         const SizedBox(width: 14),
 

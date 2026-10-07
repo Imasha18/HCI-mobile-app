@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/user_management_provider.dart';
 import '../theme/admin_theme.dart';
 
@@ -289,19 +290,27 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
             ),
           ),
           Expanded(
-            child: state.isLoading && state.users.isEmpty
-                ? const Center(child: CircularProgressIndicator(color: AdminTheme.primary))
-                : filteredUsers.isEmpty
-                    ? Center(
-                        child: Text(
-                          _searchQuery.isNotEmpty ? 'No users matching "$_searchQuery"' : 'No users found in this section',
-                          style: const TextStyle(color: AdminTheme.textSecondary, fontSize: 14),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filteredUsers.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+            child: RefreshIndicator(
+              color: AdminTheme.primary,
+              onRefresh: () => ref.read(userManagementProvider.notifier).loadAllUsers(),
+              child: state.isLoading && state.users.isEmpty
+                  ? ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 6,
+                      itemBuilder: (context, index) => const UserCardSkeleton(),
+                    )
+                  : filteredUsers.isEmpty
+                      ? Center(
+                          child: Text(
+                            _searchQuery.isNotEmpty ? 'No users matching "$_searchQuery"' : 'No users found in this section',
+                            style: const TextStyle(color: AdminTheme.textSecondary, fontSize: 14),
+                          ),
+                        )
+                      : ListView.separated(
+                          key: const PageStorageKey<String>('admin_users_scroll'),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredUsers.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final user = filteredUsers[index];
                           final id = user['_id'] as String? ?? user['id'] as String? ?? '';
@@ -436,6 +445,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> wit
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

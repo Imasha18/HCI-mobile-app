@@ -40,4 +40,8 @@ deliverySchema.pre('save', function (next) {
   next();
 });
 
+deliverySchema.index({ rider: 1, status: 1 });
+deliverySchema.index({ status: 1, createdAt: -1 });
+deliverySchema.index({ order: 1 });
+
 module.exports = mongoose.model('Delivery', deliverySchema);

@@ -2,6 +2,7 @@ const Meal = require('../models/Meal');
 const mongoose = require('mongoose');
 const { sendSuccess } = require('../utils/apiResponse');
 const { uploadImage } = require('../services/imageService');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 // Helper to parse array inputs that might come from FormData as comma-separated or json string
 function parseArrayInput(input) {
@@ -35,6 +36,18 @@ async function listMeals(req, res) {
       { category: { $regex: req.query.q, $options: 'i' } },
     ];
   }
+
+  if (req.query.page || req.query.limit) {
+    const { page, limit, skip } = parsePagination(req.query, 10);
+    const total = await Meal.countDocuments(filter);
+    const meals = await Meal.find(filter)
+      .populate('cook', 'name kitchenName profileImage rating address phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    return sendSuccess(res, meals, 'Success', 200, buildPaginationMeta(page, limit, total, meals.length));
+  }
+
   return sendSuccess(
     res,
     await Meal.find(filter)

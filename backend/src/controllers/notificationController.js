@@ -1,7 +1,18 @@
 const Notification = require('../models/Notification');
 const { sendSuccess } = require('../utils/apiResponse');
+const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
 async function listNotifications(req, res) {
+  if (req.query.page || req.query.limit) {
+    const { page, limit, skip } = parsePagination(req.query, 10);
+    const total = await Notification.countDocuments({ user: req.user.id });
+    const paged = await Notification.find({ user: req.user.id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    return sendSuccess(res, paged, 'Success', 200, buildPaginationMeta(page, limit, total, paged.length));
+  }
+
   let notifications = await Notification.find({ user: req.user.id }).sort({ createdAt: -1 });
 
   // If user is cook and notifications are empty, seed default cook alerts

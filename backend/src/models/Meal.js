@@ -34,4 +34,9 @@ mealSchema.virtual('cookingTime')
   .get(function() { return this.prepTimeMinutes; })
   .set(function(v) { this.prepTimeMinutes = v; });
 
+mealSchema.index({ cook: 1, available: 1 });
+mealSchema.index({ category: 1, available: 1 });
+mealSchema.index({ available: 1, createdAt: -1 });
+mealSchema.index({ name: 'text', description: 'text', category: 'text' });
+
 module.exports = mongoose.model('Meal', mealSchema);

@@ -135,6 +135,7 @@ class _ComplaintScreenState extends ConsumerState<ComplaintScreen> {
               ),
             )
           : ListView.separated(
+              key: const PageStorageKey<String>('admin_complaints_scroll'),
               padding: const EdgeInsets.all(16),
               itemCount: complaints.length,
               separatorBuilder: (context, index) => const SizedBox(height: 14),
