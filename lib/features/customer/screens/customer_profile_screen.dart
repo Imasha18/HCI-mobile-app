@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
+import '../../../core/widgets/app_cached_image.dart';
 import '../providers/customer_provider.dart';
 
 class CustomerProfileScreen extends ConsumerStatefulWidget {
@@ -120,23 +121,28 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
           ),
         ],
       ),
-      body: ScrollConfiguration(
-        behavior: const ScrollBehavior().copyWith(overscroll: false),
-        child: RefreshIndicator(
-          onRefresh: _refreshProfile,
-          displacement: 0,
-          edgeOffset: 0,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: ClampingScrollPhysics(),
-            ),
-            children: [
-              const CircleAvatar(
-                radius: 48,
-                child: Icon(Icons.person, size: 48),
+      body: RefreshIndicator(
+        color: const Color(0xFFFF9800),
+        onRefresh: _refreshProfile,
+        child: ListView(
+          key: const PageStorageKey<String>('customer_profile_scroll'),
+          padding: const EdgeInsets.all(24),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
+          children: [
+            Center(
+              child: AppCachedImage(
+                imageUrl: (user?['profileImage'] as String?)?.isNotEmpty == true
+                    ? user!['profileImage'] as String
+                    : null,
+                width: 96,
+                height: 96,
+                borderRadius: 48,
+                fallbackIcon: Icons.person,
               ),
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 16),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
                 child: Text(
@@ -177,7 +183,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

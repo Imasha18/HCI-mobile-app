@@ -68,7 +68,11 @@ class CustomerNotifier extends Notifier<CustomerState> {
     );
 
     try {
-      final response = await ApiClient().dio.get('/auth/me');
+      final response = await ApiClient().getCached(
+        '/auth/me',
+        ttl: const Duration(minutes: 2),
+        forceRefresh: forceRefresh,
+      );
       final payload = response.data['data'] as Map<String, dynamic>? ??
           <String, dynamic>{};
       final user = _normalizeUser(payload);
@@ -108,8 +112,12 @@ class CustomerNotifier extends Notifier<CustomerState> {
   Future<bool> restoreSession() async {
     final token = await _storage.read(key: 'auth_token');
     if (token == null || token.isEmpty) return false;
+    ApiClient().updateAuthToken(token);
     try {
-      final response = await ApiClient().dio.get('/auth/me');
+      final response = await ApiClient().getCached(
+        '/auth/me',
+        ttl: const Duration(minutes: 2),
+      );
       final payload = response.data['data'] as Map<String, dynamic>? ??
           <String, dynamic>{};
       final user = _normalizeUser(payload);
@@ -129,6 +137,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
 
   Future<void> logout() async {
     await _storage.delete(key: 'auth_token');
+    ApiClient().clearCache();
     state = const CustomerState();
   }
 
@@ -155,14 +164,17 @@ class CustomerNotifier extends Notifier<CustomerState> {
         state = const CustomerState(error: 'This login is for customers only.');
         return false;
       }
+      final token = payload['token'] as String;
       await _storage.write(
         key: 'auth_token',
-        value: payload['token'] as String,
+        value: token,
       );
+      ApiClient().updateAuthToken(token);
       state = CustomerState(user: user);
       return true;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
+      ApiClient().clearCache();
       state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }
@@ -192,6 +204,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
       return true;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
+      ApiClient().clearCache();
       state = CustomerState(error: ApiClient.messageFrom(error));
       return false;
     }
@@ -205,10 +218,12 @@ class CustomerNotifier extends Notifier<CustomerState> {
         data: {'email': email.trim(), 'code': code.trim()},
       );
       final payload = response.data['data'] as Map<String, dynamic>;
+      final token = payload['token'] as String;
       await _storage.write(
         key: 'auth_token',
-        value: payload['token'] as String,
+        value: token,
       );
+      ApiClient().updateAuthToken(token);
       state = CustomerState(user: payload['user'] as Map<String, dynamic>);
       return true;
     } on DioException catch (error) {
@@ -224,10 +239,12 @@ class CustomerNotifier extends Notifier<CustomerState> {
         data: {'idToken': idToken},
       );
       final payload = response.data['data'] as Map<String, dynamic>;
+      final token = payload['token'] as String;
       await _storage.write(
         key: 'auth_token',
-        value: payload['token'] as String,
+        value: token,
       );
+      ApiClient().updateAuthToken(token);
       state = CustomerState(user: payload['user'] as Map<String, dynamic>);
       return true;
     } on DioException catch (error) {

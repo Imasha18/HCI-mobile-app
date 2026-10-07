@@ -15,6 +15,8 @@ class ApiClient {
   factory ApiClient() => _instance;
   static final ApiClient _instance = ApiClient._internal();
 
+  String? _cachedToken;
+
   ApiClient._internal()
       : dio = Dio(
           BaseOptions(
@@ -27,16 +29,25 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await const FlutterSecureStorage().read(
-            key: 'auth_token',
-          );
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
+          if (_cachedToken != null && _cachedToken!.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $_cachedToken';
+          } else {
+            final token = await const FlutterSecureStorage().read(
+              key: 'auth_token',
+            );
+            _cachedToken = token;
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
           handler.next(options);
         },
       ),
     );
+  }
+
+  void updateAuthToken(String? token) {
+    _cachedToken = token;
   }
 
   final Dio dio;
@@ -96,10 +107,16 @@ class ApiClient {
   void clearCache([String? prefix]) {
     if (prefix == null) {
       _cache.clear();
+      _cachedToken = null;
     } else {
       _cache.removeWhere((key, _) => key.startsWith(prefix));
     }
   }
+
+  void invalidateCache([String? prefix]) {
+    clearCache(prefix);
+  }
+
 
   static String messageFrom(DioException error) {
     final data = error.response?.data;
