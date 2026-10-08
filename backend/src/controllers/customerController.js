@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const { sendSuccess } = require('../utils/apiResponse');
-const { isValidPhone } = require('../validators/authValidator');
+const { isValidPhone, normalizePhone } = require('../validators/authValidator');
 
 function publicUser(user) {
   return {
@@ -39,7 +39,7 @@ async function updateCustomerProfile(req, res) {
     if (phone && !isValidPhone(phone)) {
       return res.status(400).json({ success: false, message: 'Enter a valid Sri Lankan phone number (e.g. 077 123 4567)' });
     }
-    updates.phone = phone.trim();
+    updates.phone = normalizePhone(phone);
   }
   if (address !== undefined) {
     if (address && address.trim().length < 5) {

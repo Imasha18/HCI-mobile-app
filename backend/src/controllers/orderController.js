@@ -8,6 +8,20 @@ const Earning = require('../models/Earning');
 const { sendSuccess } = require('../utils/apiResponse');
 const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
 
+const VALID_ORDER_TRANSITIONS = {
+  'order received': ['accepted', 'rejected', 'cancelled'],
+  'accepted': ['preparing', 'cancelled', 'rejected'],
+  'preparing': ['ready for pickup', 'ready', 'cancelled'],
+  'ready for pickup': ['picked up', 'in transit', 'delivered', 'completed', 'cancelled'],
+  'ready': ['picked up', 'in transit', 'delivered', 'completed', 'cancelled'],
+  'picked up': ['in transit', 'delivered', 'completed', 'cancelled'],
+  'in transit': ['delivered', 'completed', 'cancelled'],
+  'delivered': [],
+  'completed': [],
+  'rejected': [],
+  'cancelled': [],
+};
+
 async function listOrders(req, res) {
   // If user is cook, return cook's orders, else customer's orders
   const filter = req.user.role === 'cook' ? { cook: req.user.id } : { customer: req.user.id };
@@ -39,15 +53,47 @@ async function createOrder(req, res) {
   const cart = await Cart.findOne({ customer: req.user.id }).populate('items.meal');
   const sourceItems = req.body.items || cart?.items || [];
   if (!sourceItems.length) return res.status(400).json({ success: false, message: 'Cart is empty' });
-  const items = sourceItems.map((item) => ({
+
+  const rawItems = sourceItems.map((item) => ({
     meal: item.meal?._id || item.meal,
-    name: item.name || item.meal?.name,
-    quantity: Number(item.quantity || 1),
-    price: Number(item.price ?? item.meal?.price ?? 0),
+    quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
   }));
-  const meals = await Meal.find({ _id: { $in: items.map((item) => item.meal) } });
-  if (!meals.length) return res.status(400).json({ success: false, message: 'One or more meals are invalid' });
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const mealIds = rawItems.map((item) => item.meal).filter(Boolean);
+  const meals = await Meal.find({ _id: { $in: mealIds } });
+  if (!meals.length || meals.length !== mealIds.length) {
+    return res.status(400).json({ success: false, message: 'One or more meals are invalid or no longer available' });
+  }
+
+  const mealMap = new Map(meals.map((m) => [m._id.toString(), m]));
+  const items = [];
+  let total = 0;
+
+  for (const item of rawItems) {
+    const meal = mealMap.get(item.meal.toString());
+    if (!meal || !meal.available) {
+      return res.status(400).json({ success: false, message: `Meal "${meal?.name || 'Item'}" is currently unavailable` });
+    }
+    const itemPrice = Number(meal.price || 0);
+    total += itemPrice * item.quantity;
+    items.push({
+      meal: meal._id,
+      name: meal.name,
+      quantity: item.quantity,
+      price: itemPrice, // Guaranteed server-side validated price
+    });
+  }
+
+  // Duplicate submission protection within 5-second window
+  const duplicateOrder = await Order.findOne({
+    customer: req.user.id,
+    createdAt: { $gte: new Date(Date.now() - 5000) },
+    total,
+  });
+  if (duplicateOrder) {
+    return sendSuccess(res, duplicateOrder, 'Order already placed', 200);
+  }
+
   const cookId = req.body.cookId || req.body.cook || meals[0].cook;
 
   const [cookUser, customerUser] = await Promise.all([
@@ -158,6 +204,8 @@ async function getOrder(req, res) {
     query.customer = req.user.id;
   } else if (req.user.role === 'cook') {
     query.cook = req.user.id;
+  } else if (req.user.role === 'rider') {
+    query.rider = req.user.id;
   }
 
   const order = await Order.findOne(query)
@@ -178,6 +226,11 @@ async function acceptOrder(req, res) {
   const order = await Order.findOne(query);
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
 
+  const currentNorm = (order.status || '').trim().toLowerCase();
+  if (currentNorm !== 'order received') {
+    return res.status(400).json({ success: false, message: `Cannot accept order with current status "${order.status}"` });
+  }
+
   order.status = 'Accepted';
   await order.save();
 
@@ -197,6 +250,11 @@ async function rejectOrder(req, res) {
 
   const order = await Order.findOne(query);
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+  const currentNorm = (order.status || '').trim().toLowerCase();
+  if (!['order received', 'accepted'].includes(currentNorm)) {
+    return res.status(400).json({ success: false, message: `Cannot reject order with current status "${order.status}"` });
+  }
 
   order.status = 'Rejected';
   await order.save();
@@ -220,6 +278,17 @@ async function updateOrderStatus(req, res) {
 
   const order = await Order.findOne(query);
   if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+  const currentStatusNorm = (order.status || 'Order Received').trim().toLowerCase();
+  const nextStatusNorm = status.trim().toLowerCase();
+
+  const allowedNext = VALID_ORDER_TRANSITIONS[currentStatusNorm];
+  if (allowedNext && !allowedNext.includes(nextStatusNorm)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid status transition: cannot change order from "${order.status}" to "${status}"`,
+    });
+  }
 
   order.status = status;
   await order.save();

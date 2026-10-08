@@ -120,8 +120,16 @@ class ApiClient {
 
   static String messageFrom(DioException error) {
     final data = error.response?.data;
-    if (data is Map && data['message'] is String) {
-      return data['message'] as String;
+    if (data is Map) {
+      if (data['message'] is String && (data['message'] as String).trim().isNotEmpty) {
+        return (data['message'] as String).trim();
+      }
+      if (data['details'] is List && (data['details'] as List).isNotEmpty) {
+        return (data['details'] as List).map((e) => e.toString()).join('\n');
+      }
+      if (data['error'] is String && (data['error'] as String).trim().isNotEmpty) {
+        return (data['error'] as String).trim();
+      }
     }
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
@@ -136,6 +144,12 @@ class ApiClient {
     }
     if (error.response?.statusCode == 404) {
       return 'Requested resource was not found.';
+    }
+    if (error.response?.statusCode == 409) {
+      return 'This record already exists. Please verify your details.';
+    }
+    if (error.response?.statusCode == 422) {
+      return 'Invalid request data. Please check your inputs.';
     }
     if (error.response?.statusCode == 500) {
       return 'Internal server error. Please try again shortly.';
