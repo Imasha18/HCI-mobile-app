@@ -204,22 +204,6 @@ class RoleSelectionScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, AppRoutes.adminLogin),
-                  icon: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFF757575)),
-                  label: const Text(
-                    'System Administrator Portal',
-                    style: TextStyle(
-                      color: Color(0xFF757575),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-
               const SizedBox(height: 20),
             ],
           ),

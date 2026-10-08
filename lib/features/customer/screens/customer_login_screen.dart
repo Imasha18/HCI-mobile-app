@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../../config/app_routes.dart';
 import '../../../config/api_config.dart';
 import '../../../config/constants.dart';
+import '../../admin/providers/admin_provider.dart';
+import '../../admin/services/admin_session_manager.dart';
 import '../providers/customer_provider.dart';
 
 class CustomerLoginScreen extends ConsumerStatefulWidget {
@@ -29,11 +31,23 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-    final success = await ref
+    final user = await ref
         .read(customerProvider.notifier)
         .login(_emailController.text, _passwordController.text);
-    if (success && mounted) {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    if (user != null && mounted) {
+      if (user.role == 'admin') {
+        ref.read(adminProvider.notifier).setAdminUser(user.toJson());
+        await AdminSessionManager().startSession();
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+        }
+      } else if (user.role == 'cook') {
+        Navigator.pushReplacementNamed(context, AppRoutes.cookDashboard);
+      } else if (user.role == 'rider') {
+        Navigator.pushReplacementNamed(context, AppRoutes.riderDashboard);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      }
     }
   }
 
