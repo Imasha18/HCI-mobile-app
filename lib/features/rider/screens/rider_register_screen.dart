@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -28,6 +29,7 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
   String _vehicleType = 'Motorbike';
   bool _obscurePassword = true;
   bool _isGoogleLoading = false;
+  AutovalidateMode _autoValidateMode = AutovalidateMode.disabled;
 
   final List<String> _vehicleOptions = [
     'Motorbike',
@@ -50,17 +52,21 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    setState(() {
+      _autoValidateMode = AutovalidateMode.onUserInteraction;
+    });
+
     if (!_formKey.currentState!.validate()) return;
 
     final result = await ref.read(riderProvider.notifier).register(
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+          password: _passwordController.text,
           phone: _phoneController.text.trim(),
           address: _addressController.text.trim(),
           vehicleType: _vehicleType,
           vehicleModel: _vehicleModelController.text.trim(),
-          vehiclePlateNumber: _plateNumberController.text.trim(),
+          vehiclePlateNumber: _plateNumberController.text.trim().toUpperCase(),
         );
 
     if (!mounted) return;
@@ -154,6 +160,7 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
             key: _formKey,
+            autovalidateMode: _autoValidateMode,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -203,8 +210,19 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                 _buildFieldLabel('Full Name'),
                 TextFormField(
                   controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  keyboardType: TextInputType.name,
+                  textInputAction: TextInputAction.next,
                   decoration: _inputDecoration('e.g. Kasun Bandara', Icons.person_outline),
-                  validator: (val) => val == null || val.trim().length < 2 ? 'Enter your full name' : null,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Enter your full name';
+                    }
+                    if (val.trim().length < 2) {
+                      return 'Full name must be at least 2 characters';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -212,25 +230,63 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autocorrect: false,
                   decoration: _inputDecoration('e.g. kasun@homebite.com', Icons.email_outlined),
-                  validator: (val) => val == null || !val.contains('@') ? 'Enter a valid email' : null,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Enter your email address';
+                    }
+                    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                    if (!emailRegex.hasMatch(val.trim())) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
                 _buildFieldLabel('Phone Number'),
                 TextFormField(
                   controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: _inputDecoration('+94 77 123 4567', Icons.phone_outlined),
-                  validator: (val) => val == null || val.trim().length < 9 ? 'Enter a valid phone number' : null,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  decoration: _inputDecoration('e.g. 0771234567', Icons.phone_outlined),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Enter your phone number';
+                    }
+                    final clean = val.trim();
+                    if (clean.length != 10) {
+                      return 'Phone number must be exactly 10 digits';
+                    }
+                    if (!clean.startsWith('0')) {
+                      return 'Phone number must start with 0 (e.g. 0771234567)';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
                 _buildFieldLabel('Operating City / Address'),
                 TextFormField(
                   controller: _addressController,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
                   decoration: _inputDecoration('e.g. Colombo, Sri Lanka', Icons.location_on_outlined),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Enter your delivery zone' : null,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Enter your operating city or address';
+                    }
+                    if (val.trim().length < 3) {
+                      return 'Address must be at least 3 characters';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -247,6 +303,7 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                   onChanged: (val) {
                     if (val != null) setState(() => _vehicleType = val);
                   },
+                  validator: (val) => (val == null || val.isEmpty) ? 'Select a vehicle type' : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -259,8 +316,18 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                           _buildFieldLabel('Vehicle Model'),
                           TextFormField(
                             controller: _vehicleModelController,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
                             decoration: _inputDecoration('e.g. Honda Dio', Icons.directions_bike_outlined),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Enter vehicle model' : null,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Enter vehicle model';
+                              }
+                              if (val.trim().length < 2) {
+                                return 'Enter a valid model name';
+                              }
+                              return null;
+                            },
                           ),
                         ],
                       ),
@@ -273,8 +340,18 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                           _buildFieldLabel('Plate Number'),
                           TextFormField(
                             controller: _plateNumberController,
+                            textCapitalization: TextCapitalization.characters,
+                            textInputAction: TextInputAction.next,
                             decoration: _inputDecoration('e.g. WP BZ-4892', Icons.confirmation_number_outlined),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Enter plate number' : null,
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Enter plate number';
+                              }
+                              if (val.trim().length < 4) {
+                                return 'Enter a valid plate number';
+                              }
+                              return null;
+                            },
                           ),
                         ],
                       ),
@@ -287,6 +364,7 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
                     hintText: 'At least 6 characters',
                     prefixIcon: const Icon(Icons.lock_outline, color: RiderTheme.primaryGreen),
@@ -299,8 +377,18 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: RiderTheme.primaryGreen, width: 2)),
+                    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: RiderTheme.statusRed)),
+                    focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: RiderTheme.statusRed, width: 2)),
                   ),
-                  validator: (val) => val == null || val.length < 6 ? 'Password must be at least 6 characters' : null,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Enter a password';
+                    }
+                    if (val.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
                 ),
 
                 const SizedBox(height: 28),
@@ -436,6 +524,8 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: RiderTheme.primaryGreen, width: 2)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: RiderTheme.statusRed)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: RiderTheme.statusRed, width: 2)),
     );
   }
 }
