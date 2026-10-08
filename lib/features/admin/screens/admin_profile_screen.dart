@@ -143,7 +143,7 @@ class _AdminProfileScreenState extends ConsumerState<AdminProfileScreen> {
                 onPressed: () async {
                   await ref.read(adminProvider.notifier).logout();
                   if (context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.roleSelection, (route) => false);
+                    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
                   }
                 },
                 icon: const Icon(Icons.logout_rounded, size: 20),
