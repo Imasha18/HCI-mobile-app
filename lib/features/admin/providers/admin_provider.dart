@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../services/api_client.dart';
+import '../services/admin_session_manager.dart';
 
 class AdminState {
   final bool isLoading;
@@ -114,8 +115,14 @@ class AdminNotifier extends StateNotifier<AdminState> {
     } catch (_) {}
   }
 
+  void setAdminUser(Map<String, dynamic> user) {
+    state = state.copyWith(adminUser: user);
+  }
+
   Future<void> logout() async {
     await _storage.delete(key: 'auth_token');
+    await AdminSessionManager().stopSession();
+    _client.clearCache();
     state = const AdminState();
   }
 }
