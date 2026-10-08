@@ -16,6 +16,22 @@ final singleMealFamilyProvider = FutureProvider.family<MealModel, String>((ref, 
   return MealModel.fromJson(response.data['data'] as Map<String, dynamic>);
 });
 
+final categoriesProvider = FutureProvider<List<String>>((ref) async {
+  try {
+    final response = await ApiClient().getCached(
+      '/categories',
+      ttl: const Duration(minutes: 5),
+    );
+    final raw = response.data is Map ? response.data['data'] : response.data;
+    if (raw is List) {
+      final list = raw.map((e) => e.toString()).toList();
+      if (!list.contains('All')) list.insert(0, 'All');
+      return list;
+    }
+  } catch (_) {}
+  return const ['All', 'Rice', 'Curry', 'Kottu', 'Healthy', 'Lunch', 'Dinner'];
+});
+
 class MealNotifier extends AsyncNotifier<List<MealModel>> {
   @override
   Future<List<MealModel>> build() => fetchMeals();
@@ -38,9 +54,18 @@ class MealNotifier extends AsyncNotifier<List<MealModel>> {
         ttl: const Duration(seconds: 45),
         forceRefresh: forceRefresh,
       );
-      final meals = (response.data['data'] as List<dynamic>)
-          .map((item) => MealModel.fromJson(item as Map<String, dynamic>))
+
+      final resData = response.data;
+      final dynamic rawList = resData is Map
+          ? (resData['data'] ?? resData['meals'])
+          : (resData is List ? resData : null);
+
+      final List<dynamic> list = rawList is List ? rawList : const [];
+      final meals = list
+          .whereType<Map>()
+          .map((item) => MealModel.fromJson(Map<String, dynamic>.from(item)))
           .toList();
+
       state = AsyncData(meals);
       return meals;
     } on DioException catch (error, stackTrace) {
@@ -60,6 +85,9 @@ class MealNotifier extends AsyncNotifier<List<MealModel>> {
 
   Future<MealModel> fetchMeal(String id) async {
     final response = await ApiClient().getCached('/meals/$id', ttl: const Duration(minutes: 5));
-    return MealModel.fromJson(response.data['data'] as Map<String, dynamic>);
+    final data = response.data is Map && response.data['data'] is Map
+        ? response.data['data'] as Map<String, dynamic>
+        : (response.data as Map<String, dynamic>);
+    return MealModel.fromJson(data);
   }
 }

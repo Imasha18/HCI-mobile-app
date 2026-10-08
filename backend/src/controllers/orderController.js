@@ -101,6 +101,13 @@ async function createOrder(req, res) {
     User.findById(req.user.id),
   ]);
 
+  if (cookUser && cookUser.isOnline === false) {
+    return res.status(400).json({
+      success: false,
+      message: `The kitchen "${cookUser.kitchenName || cookUser.name}" is currently offline and not accepting orders.`,
+    });
+  }
+
   const rawDelivery = req.body.deliveryAddress;
   let deliveryAddressObj = {};
   if (typeof rawDelivery === 'string') {

@@ -10,7 +10,38 @@ const { sendVerificationCode, sendPasswordResetCode } = require('../services/ema
 const { notifyAdminNewVerification } = require('../services/notificationService');
 const { normalizePhone } = require('../validators/authValidator');
 
+function extractTown(address) {
+  if (!address || typeof address !== 'string') return '';
+  const cleaned = address.trim().replace(/,\s*Sri Lanka$/i, '').trim();
+  if (!cleaned) return '';
+
+  const colomboMatch = cleaned.match(/colombo[\s-]*(?:0?[1-9]|1[0-5])\b/i);
+  if (colomboMatch) {
+    const digits = colomboMatch[0].replace(/[^0-9]/g, '');
+    if (digits) {
+      return `Colombo ${digits.padStart(2, '0')}`;
+    }
+    return 'Colombo';
+  }
+
+  const parts = cleaned.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return '';
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    let part = parts[i];
+    if (/^sri lanka$/i.test(part)) continue;
+    if (/^(lk-?)?\d{4,6}$/i.test(part)) continue;
+    part = part.replace(/[-,\s]*\b\d{4,6}\b.*$/, '').trim();
+    if (part.length > 0) {
+      return part.split(' ').map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '')).join(' ');
+    }
+  }
+
+  return parts[parts.length - 1];
+}
+
 function publicUser(user) {
+  const town = user.town || user.city || extractTown(user.address) || 'Colombo 03';
   return {
     id: user.id || user._id,
     name: user.name,
@@ -18,6 +49,8 @@ function publicUser(user) {
     role: user.role,
     phone: user.phone || '',
     address: user.address || '',
+    town,
+    city: user.city || town,
     isVerified: user.isVerified ?? (user.role === 'rider' ? false : true),
     rating: user.rating || 4.8,
     isOnline: user.isOnline ?? true,
@@ -39,54 +72,59 @@ function createVerificationCode() {
 }
 
 async function register(req, res) {
-  const { role } = req.body;
-  if (role === 'cook') {
-    return registerCook(req, res);
+  try {
+    const { role } = req.body;
+    if (role === 'cook') {
+      return registerCook(req, res);
+    }
+    if (role === 'rider') {
+      return registerRider(req, res);
+    }
+
+    const { name, email, password, phone, address } = req.body;
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const normalizedPhone = normalizePhone(phone);
+    const code = createVerificationCode();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const expiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
+
+    // Store in temporary PendingRegistration collection; do not permanently save User until OTP verification
+    await PendingRegistration.findOneAndUpdate(
+      { email: normalizedEmail },
+      {
+        name: name.trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        phone: normalizedPhone,
+        address: address?.trim() || '',
+        role: 'customer',
+        verificationCodeHash: codeHash,
+        verificationExpiresAt: expiresAt,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await sendVerificationCode(normalizedEmail, code);
+
+    return sendSuccess(res, {
+      user: {
+        name: name.trim(),
+        email: normalizedEmail,
+        role: 'customer',
+        phone: normalizedPhone,
+        address: address?.trim() || '',
+        emailVerified: false,
+      },
+      emailVerificationRequired: true,
+    }, 'Verification code sent', 201);
+  } catch (error) {
+    console.error('Customer registration error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create account. Please try again.' });
   }
-  if (role === 'rider') {
-    return registerRider(req, res);
-  }
-
-  const { name, email, password, phone, address } = req.body;
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
-
-  const hashedPassword = await bcrypt.hash(password, 12);
-  const normalizedPhone = normalizePhone(phone);
-  const code = createVerificationCode();
-  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
-  const expiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
-
-  // Store in temporary PendingRegistration collection; do not permanently save User until OTP verification
-  await PendingRegistration.findOneAndUpdate(
-    { email: normalizedEmail },
-    {
-      name: name.trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-      phone: normalizedPhone,
-      address: address?.trim() || '',
-      role: 'customer',
-      verificationCodeHash: codeHash,
-      verificationExpiresAt: expiresAt,
-    },
-    { upsert: true, new: true }
-  );
-
-  await sendVerificationCode(normalizedEmail, code);
-
-  return sendSuccess(res, {
-    user: {
-      name: name.trim(),
-      email: normalizedEmail,
-      role: 'customer',
-      phone: normalizedPhone,
-      address: address?.trim() || '',
-      emailVerified: false,
-    },
-    emailVerificationRequired: true,
-  }, 'Verification code sent', 201);
 }
 
 async function registerRider(req, res) {
@@ -97,7 +135,7 @@ async function registerRider(req, res) {
     }
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+    if (existing) return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const normalizedPhone = normalizePhone(phone);
@@ -123,7 +161,7 @@ async function registerRider(req, res) {
         verificationCodeHash: codeHash,
         verificationExpiresAt: expiresAt,
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     await sendVerificationCode(normalizedEmail, code);
@@ -140,7 +178,8 @@ async function registerRider(req, res) {
       emailVerificationRequired: true,
     }, 'Verification code sent', 201);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error('Rider registration error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create account. Please try again.' });
   }
 }
 
@@ -152,7 +191,7 @@ async function registerCook(req, res) {
     }
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+    if (existing) return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const normalizedPhone = normalizePhone(phone) || '+94 77 123 4567';
@@ -174,7 +213,8 @@ async function registerCook(req, res) {
     notifyAdminNewVerification(user).catch(() => {});
     return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook registered successfully', 201);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error('Cook registration error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create account. Please try again.' });
   }
 }
 
@@ -189,7 +229,25 @@ async function login(req, res) {
     return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
   }
   if (role && user.role !== role) {
-    return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
+    if (role === 'cook' && user.role === 'customer') {
+      user.role = 'cook';
+      if (!user.kitchenName) {
+        user.kitchenName = `${user.name || 'Home Cook'}'s Kitchen`;
+      }
+      await user.save();
+    } else if (role === 'rider' && user.role === 'customer') {
+      user.role = 'rider';
+      if (!user.vehicleDetails || !user.vehicleDetails.plateNumber) {
+        user.vehicleDetails = { type: 'Motorbike', model: 'Standard', plateNumber: 'WP BDF-0000' };
+      }
+      await user.save();
+    } else if (role === 'customer' && (user.role === 'cook' || user.role === 'rider')) {
+      // Cooks and riders can access customer portal
+    } else if (user.role === 'admin') {
+      // Admin can log in to any portal
+    } else {
+      return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
+    }
   }
   if ((user.role === 'customer' || user.role === 'rider') && !user.emailVerified) {
     return res.status(403).json({
@@ -204,66 +262,80 @@ async function login(req, res) {
 }
 
 async function verifyEmail(req, res) {
-  const email = req.body.email.trim().toLowerCase();
-  const code = req.body.code ? req.body.code.trim() : '';
-  if (!code) {
-    return res.status(400).json({ success: false, message: 'Verification code is required' });
-  }
-  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
-
-  // 1. Check temporary PendingRegistration collection
-  const pending = await PendingRegistration.findOne({ email });
-  if (pending) {
-    if (pending.verificationCodeHash !== codeHash) {
-      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+  try {
+    const email = req.body.email.trim().toLowerCase();
+    const code = req.body.code ? req.body.code.trim() : '';
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Verification code is required' });
     }
-    if (!pending.verificationExpiresAt || pending.verificationExpiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one' });
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    // 1. Check temporary PendingRegistration collection
+    const pending = await PendingRegistration.findOne({ email });
+    if (pending) {
+      if (pending.verificationCodeHash !== codeHash) {
+        return res.status(400).json({ success: false, message: 'Invalid verification code' });
+      }
+      if (!pending.verificationExpiresAt || pending.verificationExpiresAt.getTime() < Date.now()) {
+        return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one' });
+      }
+
+      // Check permanent User again before creating
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        await PendingRegistration.deleteOne({ _id: pending._id });
+        return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
+      }
+
+      const isRider = pending.role === 'rider';
+      const user = await User.create({
+        name: pending.name,
+        email: pending.email,
+        password: pending.password,
+        role: pending.role,
+        phone: pending.phone || '',
+        address: pending.address || '',
+        town: extractTown(pending.address || ''),
+        city: extractTown(pending.address || ''),
+        kitchenName: pending.kitchenName,
+        vehicleDetails: pending.vehicleDetails || { type: 'Motorbike', model: '', plateNumber: '' },
+        emailVerified: true,
+        isVerified: !isRider,
+        verificationStatus: isRider ? 'not_submitted' : 'approved',
+        verificationDocuments: isRider ? {
+          nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+          drivingLicense: { type: 'drivingLicense', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+          vehicleDocument: { type: 'vehicleDocument', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+          insurance: { type: 'insurance', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+        } : {},
+      });
+
+      // Cleanup temporary registration (single-use OTP)
+      await PendingRegistration.deleteOne({ _id: pending._id });
+
+      if (isRider) {
+        notifyAdminNewVerification(user).catch(() => {});
+      }
+
+      return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
     }
 
-    const isRider = pending.role === 'rider';
-    const user = await User.create({
-      name: pending.name,
-      email: pending.email,
-      password: pending.password,
-      role: pending.role,
-      phone: pending.phone || '',
-      address: pending.address || '',
-      kitchenName: pending.kitchenName,
-      vehicleDetails: pending.vehicleDetails || { type: 'Motorbike', model: '', plateNumber: '' },
-      emailVerified: true,
-      isVerified: !isRider,
-      verificationStatus: isRider ? 'not_submitted' : 'approved',
-      verificationDocuments: isRider ? {
-        nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-        drivingLicense: { type: 'drivingLicense', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-        vehicleDocument: { type: 'vehicleDocument', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-        insurance: { type: 'insurance', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-      } : {},
-    });
-
-    // Cleanup temporary registration (single-use OTP)
-    await PendingRegistration.deleteOne({ _id: pending._id });
-
-    if (isRider) {
-      notifyAdminNewVerification(user).catch(() => {});
+    // 2. Fallback for existing unverified User records
+    const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
+    if (!user || user.verificationCodeHash !== codeHash || !user.verificationExpiresAt || user.verificationExpiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
     }
+
+    user.emailVerified = true;
+    user.verificationCodeHash = undefined;
+    user.verificationExpiresAt = undefined;
+    await user.save();
 
     return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
+  } catch (error) {
+    console.error('Verify email error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to verify email. Please try again.' });
   }
-
-  // 2. Fallback for existing unverified User records
-  const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
-  if (!user || user.verificationCodeHash !== codeHash || !user.verificationExpiresAt || user.verificationExpiresAt.getTime() < Date.now()) {
-    return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
-  }
-
-  user.emailVerified = true;
-  user.verificationCodeHash = undefined;
-  user.verificationExpiresAt = undefined;
-  await user.save();
-
-  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
 }
 
 async function resendVerification(req, res) {
@@ -338,22 +410,69 @@ async function resendVerification(req, res) {
 async function googleLogin(req, res) {
   if (!environment.googleClientId) return res.status(503).json({ success: false, message: 'Google authentication is not configured' });
   const client = new OAuth2Client(environment.googleClientId);
-  const ticket = await client.verifyIdToken({ idToken: req.body.idToken, audience: environment.googleClientId });
+  let ticket;
+  try {
+    ticket = await client.verifyIdToken({ idToken: req.body.idToken, audience: environment.googleClientId });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid Google authentication token' });
+  }
   const payload = ticket.getPayload();
   if (!payload?.email || !payload.email_verified) return res.status(401).json({ success: false, message: 'A verified Google email is required' });
+  const requestedRole = req.body.role || 'customer';
   let user = await User.findOne({ email: payload.email.toLowerCase() });
   if (!user) {
+    const kitchenName = req.body.kitchenName || (requestedRole === 'cook' ? `${payload.name || 'Chef'}'s Kitchen` : '');
     user = await User.create({
-      name: payload.name || payload.email.split('@')[0],
+      name: req.body.name || payload.name || payload.email.split('@')[0],
       email: payload.email.toLowerCase(),
       password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
-      role: 'customer',
+      role: requestedRole,
+      kitchenName: kitchenName,
+      phone: req.body.phone ? normalizePhone(req.body.phone) : '',
+      address: req.body.address ? req.body.address.trim() : '',
+      vehicleDetails: requestedRole === 'rider' ? {
+        type: req.body.vehicleType || 'Motorbike',
+        model: req.body.vehicleModel || 'Standard',
+        plateNumber: req.body.vehiclePlateNumber || 'WP BDF-0000',
+      } : undefined,
       emailVerified: true,
       googleId: payload.sub,
       profileImage: payload.picture,
     });
+  } else {
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
+    }
+    if (!user.googleId) user.googleId = payload.sub;
+    if (!user.emailVerified) user.emailVerified = true;
+    if (!user.profileImage && payload.picture) user.profileImage = payload.picture;
+
+    // Set role for the target portal if not admin
+    if (user.role !== 'admin') {
+      user.role = requestedRole;
+    }
+
+    if (requestedRole === 'cook') {
+      if (req.body.kitchenName) {
+        user.kitchenName = req.body.kitchenName.trim();
+      } else if (!user.kitchenName) {
+        user.kitchenName = `${user.name || payload.name || 'Home Cook'}'s Kitchen`;
+      }
+      if (req.body.phone) user.phone = normalizePhone(req.body.phone);
+      if (req.body.address) user.address = req.body.address.trim();
+    } else if (requestedRole === 'rider') {
+      if (!user.vehicleDetails || !user.vehicleDetails.plateNumber) {
+        user.vehicleDetails = {
+          type: req.body.vehicleType || user.vehicleDetails?.type || 'Motorbike',
+          model: req.body.vehicleModel || user.vehicleDetails?.model || 'Standard',
+          plateNumber: req.body.vehiclePlateNumber || user.vehicleDetails?.plateNumber || 'WP BDF-0000',
+        };
+      }
+      if (req.body.phone) user.phone = normalizePhone(req.body.phone);
+      if (req.body.address) user.address = req.body.address.trim();
+    }
+    await user.save();
   }
-  if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
 }
 
@@ -390,7 +509,7 @@ async function me(req, res) {
 }
 
 async function updateMe(req, res) {
-  const { name, phone, address, profileImage } = req.body;
+  const { name, phone, address, town, city, profileImage } = req.body;
   const updates = {};
   if (name && typeof name === 'string' && name.trim().length >= 2) updates.name = name.trim();
   if (phone !== undefined) {
@@ -405,7 +524,12 @@ async function updateMe(req, res) {
       return res.status(400).json({ success: false, message: 'Please enter a complete delivery address' });
     }
     updates.address = address.trim();
+    if (!town && !city) {
+      updates.town = extractTown(address.trim());
+    }
   }
+  if (town !== undefined) updates.town = town.trim();
+  if (city !== undefined) updates.city = city.trim();
   if (profileImage !== undefined) updates.profileImage = profileImage;
 
   const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });

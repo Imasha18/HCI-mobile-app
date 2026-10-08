@@ -44,7 +44,7 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final response = await _client.dio.get('/cooks/meals');
-      final data = response.data['data'] as List<dynamic>;
+      final data = (response.data['data'] as List<dynamic>?) ?? [];
       state = state.copyWith(isLoading: false, meals: data);
     } on DioException catch (e) {
       state = state.copyWith(
@@ -72,6 +72,8 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
     required List<String> ingredients,
     required List<String> dietaryInfo,
     required bool available,
+    String cuisine = 'Sri Lankan',
+    String spiceLevel = 'medium',
     File? imageFile,
     String? imageUrl,
   }) async {
@@ -84,9 +86,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients.join(', '),
           'dietaryInformation': dietaryInfo.join(', '),
+          'dietaryTags': dietaryInfo.join(', '),
           'available': available,
           'image': await MultipartFile.fromFile(
             imageFile.path,
@@ -99,9 +105,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients,
           'dietaryInformation': dietaryInfo,
+          'dietaryTags': dietaryInfo,
           'available': available,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
         };
@@ -135,6 +145,8 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
     required List<String> ingredients,
     required List<String> dietaryInfo,
     required bool available,
+    String cuisine = 'Sri Lankan',
+    String spiceLevel = 'medium',
     File? imageFile,
     String? imageUrl,
   }) async {
@@ -147,9 +159,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients.join(', '),
           'dietaryInformation': dietaryInfo.join(', '),
+          'dietaryTags': dietaryInfo.join(', '),
           'available': available,
           'image': await MultipartFile.fromFile(
             imageFile.path,
@@ -162,9 +178,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients,
           'dietaryInformation': dietaryInfo,
+          'dietaryTags': dietaryInfo,
           'available': available,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
         };
@@ -179,7 +199,7 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
         error: ApiClient.messageFrom(e),
       );
       return false;
-    } catch (_) {
+    } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to update meal',
@@ -189,11 +209,22 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
   }
 
   Future<bool> deleteMeal(String id) async {
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _client.dio.delete('/meals/$id');
       await fetchMeals();
       return true;
-    } catch (_) {
+    } on DioException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(e),
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to delete meal: $e',
+      );
       return false;
     }
   }
@@ -201,7 +232,7 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
   Future<void> toggleAvailability(String id, bool newStatus) async {
     // Optimistic UI update
     final currentMeals = [...state.meals];
-    final index = currentMeals.indexWhere((m) => m['_id'] == id);
+    final index = currentMeals.indexWhere((m) => (m['_id'] ?? m['id'])?.toString() == id);
     if (index != -1) {
       final updated = Map<String, dynamic>.from(currentMeals[index]);
       updated['available'] = newStatus;

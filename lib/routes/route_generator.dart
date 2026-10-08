@@ -117,7 +117,9 @@ class RouteGenerator {
       AppRoutes.manageMenu => const ManageMenuScreen(),
       AppRoutes.addMeal => const AddMealScreen(),
       AppRoutes.editMeal => EditMealScreen(
-          meal: settings.arguments as Map<String, dynamic>,
+          meal: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : <String, dynamic>{},
         ),
       AppRoutes.cookOrders => const CookOrdersScreen(),
       AppRoutes.cookOrderDetails => OrderDetailsScreen(

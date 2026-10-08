@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/cook_provider.dart';
 import '../providers/meal_management_provider.dart';
 import '../theme/cook_theme.dart';
 
@@ -14,19 +15,23 @@ class AddMealScreen extends ConsumerStatefulWidget {
 
 class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _cookingTimeController = TextEditingController(text: '25');
+  final _cuisineController = TextEditingController(text: 'Sri Lankan');
   final _ingredientsController = TextEditingController();
   final _dietaryController = TextEditingController();
   final _imageUrlController = TextEditingController();
 
   String _selectedCategory = 'Rice';
+  String _selectedSpiceLevel = 'medium';
   bool _availability = true;
   File? _selectedImageFile;
 
-  final List<String> _categories = ['Rice', 'Curry', 'Kottu', 'Healthy'];
+  final List<String> _categories = ['Rice', 'Curry', 'Kottu', 'Healthy', 'Short Eats', 'Dessert'];
+  final List<String> _spiceLevels = ['mild', 'medium', 'spicy'];
   final List<String> _presetImages = [
     'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&q=80',
     'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=600&q=80',
@@ -36,10 +41,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
     _cookingTimeController.dispose();
+    _cuisineController.dispose();
     _ingredientsController.dispose();
     _dietaryController.dispose();
     _imageUrlController.dispose();
@@ -47,7 +54,21 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   Future<void> _submitMeal() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in required fields (Meal Name, Price).'),
+          backgroundColor: CookTheme.statusRed,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
     final cookingTime = int.tryParse(_cookingTimeController.text.trim()) ?? 25;
@@ -55,13 +76,13 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final ingredients = _ingredientsController.text
         .split(',')
         .map((s) => s.trim())
-        .filter((s) => s.isNotEmpty)
+        .where((s) => s.isNotEmpty)
         .toList();
 
     final dietary = _dietaryController.text
         .split(',')
         .map((s) => s.trim())
-        .filter((s) => s.isNotEmpty)
+        .where((s) => s.isNotEmpty)
         .toList();
 
     final success = await ref.read(mealManagementProvider.notifier).addMeal(
@@ -69,6 +90,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           description: _descriptionController.text.trim(),
           price: price,
           category: _selectedCategory,
+          cuisine: _cuisineController.text.trim().isNotEmpty
+              ? _cuisineController.text.trim()
+              : 'Sri Lankan',
+          spiceLevel: _selectedSpiceLevel,
           cookingTime: cookingTime,
           ingredients: ingredients,
           dietaryInfo: dietary,
@@ -79,7 +104,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               : _presetImages[0],
         );
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
+      await ref.read(cookProvider.notifier).fetchDashboard();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Meal added to menu successfully!'),
@@ -87,6 +116,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         ),
       );
       Navigator.pop(context);
+    } else {
+      final errorMsg = ref.read(mealManagementProvider).error ?? 'Failed to add meal';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: CookTheme.statusRed,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -110,6 +148,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         ),
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -264,6 +303,47 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
                     const SizedBox(height: 16),
 
+                    // Cuisine
+                    TextFormField(
+                      controller: _cuisineController,
+                      decoration: InputDecoration(
+                        labelText: 'Cuisine',
+                        hintText: 'e.g. Sri Lankan, Indian, Fusion',
+                        filled: true,
+                        fillColor: CookTheme.surfaceLight,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Spice Level
+                    const Text(
+                      'Spice Level',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: CookTheme.textDark),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _spiceLevels.map((lvl) {
+                        final isSelected = _selectedSpiceLevel == lvl;
+                        return ChoiceChip(
+                          label: Text(lvl.toUpperCase()),
+                          selected: isSelected,
+                          onSelected: (_) => setState(() => _selectedSpiceLevel = lvl),
+                          selectedColor: CookTheme.primaryOrange,
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.white : CookTheme.textDark,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 16),
+
                     // Price & Cooking Time Row
                     Row(
                       children: [
@@ -399,7 +479,4 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       ),
     );
   }
-}
-extension _IterableFilter<E> on Iterable<E> {
-  Iterable<E> filter(bool Function(E element) test) => where(test);
 }

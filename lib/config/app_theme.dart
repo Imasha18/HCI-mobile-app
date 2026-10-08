@@ -31,7 +31,7 @@ class AppTheme {
       style: FilledButton.styleFrom(
         backgroundColor: _orange,
         foregroundColor: Colors.white,
-        minimumSize: const Size.fromHeight(56),
+        minimumSize: const Size(64, 56),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     ),

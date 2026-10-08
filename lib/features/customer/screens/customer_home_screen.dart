@@ -7,6 +7,7 @@ import '../../../core/widgets/skeleton_loaders.dart';
 import '../../../models/meal_model.dart';
 import '../../../models/meal_recommendation_model.dart';
 import '../providers/cooks_provider.dart';
+import '../providers/customer_provider.dart';
 import '../providers/meal_provider.dart';
 import '../providers/recommendation_provider.dart';
 
@@ -25,23 +26,85 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshAllData();
+    });
+  }
+
+  String _getDeliveryTown(Map<String, dynamic>? user) {
+    if (user == null) return 'Colombo 03';
+    final town = (user['town'] as String?)?.trim();
+    if (town != null && town.isNotEmpty) return town;
+    final city = (user['city'] as String?)?.trim();
+    if (city != null && city.isNotEmpty) return city;
+    final address = (user['address'] as String?)?.trim();
+    if (address != null && address.isNotEmpty) {
+      var cleaned = address.replaceAll(RegExp(r',\s*Sri Lanka$', caseSensitive: false), '').trim();
+      final colomboMatch = RegExp(r'colombo[\s-]*(?:0?[1-9]|1[0-5])\b', caseSensitive: false).firstMatch(cleaned);
+      if (colomboMatch != null) {
+        final digits = colomboMatch.group(0)!.replaceAll(RegExp(r'[^0-9]'), '');
+        return digits.isNotEmpty ? 'Colombo ${digits.padLeft(2, '0')}' : 'Colombo';
+      }
+      final parts = cleaned.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+      for (int i = parts.length - 1; i >= 0; i--) {
+        var part = parts[i];
+        if (RegExp(r'^sri lanka$', caseSensitive: false).hasMatch(part)) continue;
+        if (RegExp(r'^(lk-?)?\d{4,6}$', caseSensitive: false).hasMatch(part)) continue;
+        part = part.replaceAll(RegExp(r'[-,\s]*\b\d{4,6}\b.*$'), '').trim();
+        if (part.isNotEmpty) {
+          return part.split(' ').map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+        }
+      }
+      if (parts.isNotEmpty) return parts.last;
+    }
+    return 'Colombo 03';
+  }
+
+  Future<void> _refreshAllData({bool forceRefresh = false}) async {
+    await Future.wait([
+      ref.read(customerProvider.notifier).loadProfile(forceRefresh: forceRefresh),
+      ref.read(mealProvider.notifier).fetchMeals(
+            category: _selectedCategory == 'All' ? null : _selectedCategory,
+            forceRefresh: forceRefresh,
+          ),
+      ref.read(cooksProvider.notifier).fetchCooks(forceRefresh: forceRefresh),
+      ref.read(recommendationProvider.notifier).loadRecommendations(forceRefresh: forceRefresh),
+    ]);
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
+    final customerState = ref.watch(customerProvider);
+    final deliveryTown = _getDeliveryTown(customerState.user);
     final meals = ref.watch(mealProvider);
     final cooksAsync = ref.watch(cooksProvider);
     final recState = ref.watch(recommendationProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'DELIVER TO',
-              style: TextStyle(fontSize: 11, letterSpacing: 1.2),
-            ),
-            Text('Colombo 03  ·  Change', style: TextStyle(fontSize: 14)),
-          ],
+        automaticallyImplyLeading: false,
+        title: InkWell(
+          onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+          borderRadius: BorderRadius.circular(4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'DELIVER TO',
+                style: TextStyle(fontSize: 11, letterSpacing: 1.2),
+              ),
+              Text(
+                '$deliveryTown  ·  Change',
+                style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -53,16 +116,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
       ),
       body: RefreshIndicator(
         color: const Color(0xFFFF9800),
-        onRefresh: () async {
-          await Future.wait([
-            ref.read(mealProvider.notifier).fetchMeals(
-                  category: _selectedCategory == 'All' ? null : _selectedCategory,
-                  forceRefresh: true,
-                ),
-            ref.read(cooksProvider.notifier).fetchCooks(forceRefresh: true),
-            ref.read(recommendationProvider.notifier).loadRecommendations(forceRefresh: true),
-          ]);
-        },
+        onRefresh: () => _refreshAllData(forceRefresh: true),
         child: ListView(
           key: const PageStorageKey<String>('customer_home_scroll'),
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
@@ -82,40 +136,52 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
               ),
             ),
             const SizedBox(height: 24),
-            Wrap(
-              spacing: 8,
-              children: ['All', 'Rice', 'Curry', 'Kottu', 'Healthy']
-                  .map(
-                    (category) => ChoiceChip(
-                      label: Text(category),
-                      selected: _selectedCategory == category,
-                      selectedColor: const Color(0xFFFFF3E0),
-                      labelStyle: TextStyle(
-                        color: _selectedCategory == category
-                            ? const Color(0xFFFF9800)
-                            : Colors.black87,
-                        fontWeight: _selectedCategory == category
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() => _selectedCategory = category);
-                          ref.read(mealProvider.notifier).fetchMeals(
-                                category: category == 'All' ? null : category,
-                              );
-                        }
-                      },
+            categoriesAsync.when(
+              data: (categories) => Wrap(
+                spacing: 8,
+                children: categories.map(
+                  (category) => ChoiceChip(
+                    label: Text(category),
+                    selected: _selectedCategory == category,
+                    selectedColor: const Color(0xFFFFF3E0),
+                    labelStyle: TextStyle(
+                      color: _selectedCategory == category
+                          ? const Color(0xFFFF9800)
+                          : Colors.black87,
+                      fontWeight: _selectedCategory == category
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
-                  )
-                  .toList(),
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedCategory = category);
+                        ref.read(mealProvider.notifier).fetchMeals(
+                              category: category == 'All' ? null : category,
+                            );
+                      }
+                    },
+                  ),
+                ).toList(),
+              ),
+              loading: () => Wrap(
+                spacing: 8,
+                children: ['All', 'Rice', 'Curry', 'Kottu', 'Healthy']
+                    .map((cat) => ChoiceChip(label: Text(cat), selected: _selectedCategory == cat))
+                    .toList(),
+              ),
+              error: (_, _) => Wrap(
+                spacing: 8,
+                children: ['All', 'Rice', 'Curry', 'Kottu', 'Healthy']
+                    .map((cat) => ChoiceChip(label: Text(cat), selected: _selectedCategory == cat))
+                    .toList(),
+              ),
             ),
             if (recState.shouldShowOnboardingBanner) ...[
               const SizedBox(height: 18),
               _buildOnboardingBanner(context),
             ],
             const SizedBox(height: 24),
-            _buildRecommendationsSection(context, recState),
+            _buildRecommendationsSection(context, recState, meals.valueOrNull ?? []),
             const SizedBox(height: 28),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -137,20 +203,42 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
             const SizedBox(height: 12),
             meals.when(
               data: (items) => _mealList(context, items),
-              error: (error, _) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(error.toString().replaceFirst('Exception: ', '')),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => ref.read(mealProvider.notifier).fetchMeals(
-                          category:
-                              _selectedCategory == 'All' ? null : _selectedCategory,
-                          forceRefresh: true,
-                        ),
-                    child: const Text('Retry'),
-                  ),
-                ],
+              error: (error, _) => Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFFCC80)),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.restaurant_menu, size: 36, color: Color(0xFFFF9800)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Unable to load meals right now.',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      error.toString().replaceFirst('Exception: ', ''),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF9800),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => ref.read(mealProvider.notifier).fetchMeals(
+                            category: _selectedCategory == 'All' ? null : _selectedCategory,
+                            forceRefresh: true,
+                          ),
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Tap to retry'),
+                    ),
+                  ],
+                ),
               ),
               loading: () => Column(
                 children: List.generate(4, (_) => const MealTileSkeleton()),
@@ -255,7 +343,29 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
               loading: () => Column(
                 children: List.generate(3, (_) => const UserCardSkeleton()),
               ),
-              error: (err, _) => const SizedBox.shrink(),
+              error: (err, _) => Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.storefront, color: Color(0xFFFF9800)),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Unable to load kitchens.',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref.read(cooksProvider.notifier).fetchCooks(forceRefresh: true),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -419,6 +529,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
               FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFFF7A00),
+                  minimumSize: const Size(0, 36),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -444,12 +555,37 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     );
   }
 
-  Widget _buildRecommendationsSection(BuildContext context, RecommendationState recState) {
+  Widget _buildRecommendationsSection(
+    BuildContext context,
+    RecommendationState recState,
+    List<MealModel> availableMeals,
+  ) {
     if (recState.isLoading && recState.recommendations.isEmpty) {
       return _buildRecommendationsSkeleton();
     }
 
-    if (recState.recommendations.isEmpty) {
+    final List<MealRecommendation> displayRecs;
+    if (recState.recommendations.isNotEmpty) {
+      displayRecs = recState.recommendations;
+    } else if (availableMeals.isNotEmpty) {
+      final sortedMeals = List<MealModel>.from(availableMeals)
+        ..sort((a, b) => (b.rating ?? 4.5).compareTo(a.rating ?? 4.5));
+      displayRecs = sortedMeals.take(6).map((m) {
+        final r = m.rating ?? 4.8;
+        return MealRecommendation(
+          meal: m,
+          reasons: [
+            if (r >= 4.7) 'Top rated (${r.toStringAsFixed(1)} ★)' else 'Popular Favourite',
+            'Fresh Homemade',
+          ],
+          score: r * 2,
+        );
+      }).toList();
+    } else {
+      displayRecs = const [];
+    }
+
+    if (displayRecs.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -498,10 +634,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
-            itemCount: recState.recommendations.length,
+            itemCount: displayRecs.length,
             separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
-              final item = recState.recommendations[index];
+              final item = displayRecs[index];
               return _buildRecommendationCard(context, item);
             },
           ),
@@ -600,7 +736,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                             const Icon(Icons.star, size: 14, color: Color(0xFFFFB300)),
                             const SizedBox(width: 3),
                             Text(
-                              meal.rating != null ? meal.rating!.toStringAsFixed(1) : '4.8',
+                              (meal.rating ?? 4.8).toStringAsFixed(1),
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,

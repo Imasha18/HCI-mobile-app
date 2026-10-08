@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../config/api_config.dart';
 import '../../../config/app_routes.dart';
 import '../../../config/constants.dart';
 import '../providers/rider_provider.dart';
@@ -18,6 +20,17 @@ class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
+  bool _isGoogleLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(riderProvider.notifier).clearError();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -63,6 +76,46 @@ class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final googleSignIn = GoogleSignIn(serverClientId: ApiConfig.googleClientId);
+      final account = await googleSignIn.signIn();
+      final idToken = (await account?.authentication)?.idToken;
+      if (idToken == null) {
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      final success = await ref.read(riderProvider.notifier).googleLogin(idToken);
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.riderDashboard, (_) => false);
+      } else {
+        final err = ref.read(riderProvider).error ?? 'Google authentication failed.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: RiderTheme.statusRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() => _isGoogleLoading = false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google sign-in error: $e'),
+          backgroundColor: RiderTheme.statusRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -301,16 +354,17 @@ class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Signing in with demo rider credentials...'),
-                            backgroundColor: RiderTheme.primaryDark,
-                          ),
-                        );
-                        _handleLogin();
-                      },
-                      icon: const Icon(Icons.g_mobiledata_rounded, size: 28, color: RiderTheme.primaryDark),
+                      onPressed: (state.isLoading || _isGoogleLoading) ? null : _handleGoogleSignIn,
+                      icon: _isGoogleLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: RiderTheme.primaryDark,
+                              ),
+                            )
+                          : const Icon(Icons.g_mobiledata_rounded, size: 28, color: RiderTheme.primaryDark),
                       label: const Text(
                         'Continue with Google',
                         style: TextStyle(

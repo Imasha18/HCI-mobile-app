@@ -7,6 +7,7 @@ const {
   updateMeal,
   deleteMeal,
   toggleAvailability,
+  getCategories,
 } = require('../controllers/mealController');
 const { authenticate } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.get('/', listMeals);
 router.get('/search', searchMeals);
+router.get('/categories', getCategories);
 router.get('/:id', getMeal);
 
 // Cook endpoints

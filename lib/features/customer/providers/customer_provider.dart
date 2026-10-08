@@ -48,6 +48,39 @@ class CustomerNotifier extends Notifier<CustomerState> {
   Map<String, dynamic> _normalizeUser(Map<String, dynamic> data) {
     final rawUser = Map<String, dynamic>.from(data);
     final role = rawUser['role'];
+    final address = (rawUser['address'] as String?)?.trim() ?? '';
+    String town = (rawUser['town'] as String?)?.trim() ??
+        (rawUser['city'] as String?)?.trim() ??
+        '';
+
+    if (town.isEmpty && address.isNotEmpty) {
+      var cleaned = address.replaceAll(RegExp(r',\s*Sri Lanka$', caseSensitive: false), '').trim();
+      final colomboMatch = RegExp(r'colombo[\s-]*(?:0?[1-9]|1[0-5])\b', caseSensitive: false).firstMatch(cleaned);
+      if (colomboMatch != null) {
+        final digits = colomboMatch.group(0)!.replaceAll(RegExp(r'[^0-9]'), '');
+        town = digits.isNotEmpty ? 'Colombo ${digits.padLeft(2, '0')}' : 'Colombo';
+      } else {
+        final parts = cleaned.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+        for (int i = parts.length - 1; i >= 0; i--) {
+          var part = parts[i];
+          if (RegExp(r'^sri lanka$', caseSensitive: false).hasMatch(part)) continue;
+          if (RegExp(r'^(lk-?)?\d{4,6}$', caseSensitive: false).hasMatch(part)) continue;
+          part = part.replaceAll(RegExp(r'[-,\s]*\b\d{4,6}\b.*$'), '').trim();
+          if (part.isNotEmpty) {
+            town = part.split(' ').map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+            break;
+          }
+        }
+        if (town.isEmpty && parts.isNotEmpty) {
+          town = parts.last;
+        }
+      }
+    }
+
+    if (town.isEmpty) {
+      town = 'Colombo 03';
+    }
+
     return {
       ...rawUser,
       'id': rawUser['_id'] ?? rawUser['id'] ?? '',
@@ -55,9 +88,17 @@ class CustomerNotifier extends Notifier<CustomerState> {
       'name': rawUser['name'] ?? 'HomeBite customer',
       'email': rawUser['email'] ?? '',
       'phone': rawUser['phone'] ?? '',
-      'address': rawUser['address'] ?? '',
+      'address': address,
+      'town': town,
+      'city': rawUser['city'] ?? town,
       'profileImage': rawUser['profileImage'] ?? rawUser['avatar'] ?? '',
     };
+  }
+
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(clearError: true);
+    }
   }
 
   Future<bool> loadProfile({bool forceRefresh = false}) async {
@@ -80,14 +121,6 @@ class CustomerNotifier extends Notifier<CustomerState> {
       final payload = response.data['data'] as Map<String, dynamic>? ??
           <String, dynamic>{};
       final user = _normalizeUser(payload);
-      if (user['role'] != 'customer') {
-        state = state.copyWith(
-          isLoading: false,
-          isRefreshing: false,
-          error: 'Customer access only.',
-        );
-        return false;
-      }
 
       state = state.copyWith(
         isLoading: false,
@@ -125,7 +158,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
       final payload = response.data['data'] as Map<String, dynamic>? ??
           <String, dynamic>{};
       final user = _normalizeUser(payload);
-      if (user['role'] != 'customer') return false;
+      if ((user['id']?.toString() ?? '').isEmpty) return false;
       state = state.copyWith(
         user: user,
         isLoading: false,
@@ -160,7 +193,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
     try {
       final authResponse = await AuthService().login(email, password);
       final user = authResponse.user;
-      state = CustomerState(user: user.toJson());
+      state = CustomerState(user: _normalizeUser(user.toJson()));
       return user;
     } on DioException catch (error) {
       await _storage.delete(key: 'auth_token');
@@ -270,7 +303,10 @@ class CustomerNotifier extends Notifier<CustomerState> {
     try {
       final response = await ApiClient().dio.post(
         '/auth/google',
-        data: {'idToken': idToken},
+        data: {
+          'idToken': idToken,
+          'role': 'customer',
+        },
       );
       final payload = response.data['data'] as Map<String, dynamic>;
       final token = payload['token'] as String;
@@ -279,7 +315,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
         value: token,
       );
       ApiClient().updateAuthToken(token);
-      state = CustomerState(user: payload['user'] as Map<String, dynamic>);
+      state = CustomerState(user: _normalizeUser(payload['user'] as Map<String, dynamic>));
       return true;
     } on DioException catch (error) {
       state = CustomerState(error: ApiClient.messageFrom(error));

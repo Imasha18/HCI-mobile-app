@@ -5,6 +5,7 @@ import '../../../config/app_routes.dart';
 import '../../../config/constants.dart';
 import '../../../core/widgets/app_cached_image.dart';
 import '../../../core/widgets/skeleton_loaders.dart';
+import '../providers/cook_provider.dart';
 import '../providers/meal_management_provider.dart';
 import '../theme/cook_theme.dart';
 
@@ -16,7 +17,7 @@ class ManageMenuScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
-  final List<String> _categories = ['All', 'Rice', 'Curry', 'Kottu', 'Healthy'];
+  final List<String> _categories = ['All', 'Rice', 'Curry', 'Kottu', 'Healthy', 'Short Eats', 'Dessert'];
 
   @override
   void initState() {
@@ -44,6 +45,9 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
               final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(ctx);
               final success = await ref.read(mealManagementProvider.notifier).deleteMeal(mealId);
+              if (success) {
+                ref.read(cookProvider.notifier).fetchDashboard();
+              }
               messenger.showSnackBar(
                 SnackBar(
                   content: Text(success ? 'Meal deleted successfully' : 'Failed to delete meal'),
@@ -85,7 +89,12 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_rounded, color: CookTheme.primaryOrange, size: 28),
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.addMeal),
+            onPressed: () async {
+              await Navigator.pushNamed(context, AppRoutes.addMeal);
+              if (mounted) {
+                ref.read(mealManagementProvider.notifier).fetchMeals();
+              }
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -169,7 +178,12 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 ),
-                                onPressed: () => Navigator.pushNamed(context, AppRoutes.addMeal),
+                                onPressed: () async {
+                                  await Navigator.pushNamed(context, AppRoutes.addMeal);
+                                  if (mounted) {
+                                    ref.read(mealManagementProvider.notifier).fetchMeals();
+                                  }
+                                },
                                 icon: const Icon(Icons.add),
                                 label: const Text('Add Your First Meal'),
                               ),
@@ -362,7 +376,12 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: CookTheme.primaryOrange,
         foregroundColor: Colors.white,
-        onPressed: () => Navigator.pushNamed(context, AppRoutes.addMeal),
+        onPressed: () async {
+          await Navigator.pushNamed(context, AppRoutes.addMeal);
+          if (mounted) {
+            ref.read(mealManagementProvider.notifier).fetchMeals();
+          }
+        },
         icon: const Icon(Icons.add),
         label: const Text('Add Meal', style: TextStyle(fontWeight: FontWeight.bold)),
       ),

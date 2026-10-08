@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/api_config.dart';
@@ -41,6 +42,36 @@ class ApiClient {
             }
           }
           handler.next(options);
+        },
+      ),
+    );
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          assert(() {
+            debugPrint('[API REQ] ${options.method} ${options.path} ${options.queryParameters.isNotEmpty ? options.queryParameters : ""}');
+            return true;
+          }());
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          assert(() {
+            final data = response.data;
+            final shape = data is Map
+                ? 'Map(keys: ${data.keys.toList()})'
+                : (data is List ? 'List(length: ${data.length})' : '${data.runtimeType}');
+            debugPrint('[API RES] ${response.requestOptions.path} ${response.statusCode} shape: $shape');
+            return true;
+          }());
+          handler.next(response);
+        },
+        onError: (DioException err, handler) {
+          assert(() {
+            debugPrint('[API ERR] ${err.requestOptions.path} type: ${err.type} status: ${err.response?.statusCode} error: ${ApiClient.messageFrom(err)}');
+            return true;
+          }());
+          handler.next(err);
         },
       ),
     );

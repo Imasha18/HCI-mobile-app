@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
 import '../../../services/api_client.dart';
+import '../../cook/providers/cook_provider.dart';
 import '../../customer/providers/customer_provider.dart';
 import '../../rider/providers/rider_provider.dart';
 
@@ -130,10 +131,28 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       _errorMessage = null;
     });
 
+    final isCook = widget.role == 'cook';
     final isRider = widget.role == 'rider';
 
     try {
-      if (isRider) {
+      if (isCook) {
+        final success = await ref
+            .read(cookProvider.notifier)
+            .verifyEmail(widget.email, code);
+        if (!mounted) return;
+        if (success) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.cookDashboard,
+            (_) => false,
+          );
+        } else {
+          final err = ref.read(cookProvider).error;
+          setState(() {
+            _errorMessage = err ?? 'Verification failed. Please try again.';
+          });
+        }
+      } else if (isRider) {
         final success = await ref
             .read(riderProvider.notifier)
             .verifyEmail(widget.email, code);

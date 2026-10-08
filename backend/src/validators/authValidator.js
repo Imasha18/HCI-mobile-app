@@ -86,9 +86,40 @@ function validatePasswordReset(body) {
   return errors;
 }
 
+function validateCookRegistration(body) {
+  const errors = [];
+  if (typeof body.name !== 'string' || body.name.trim().length < 2) {
+    errors.push('Enter your full name.');
+  }
+  if (typeof body.kitchenName !== 'string' || body.kitchenName.trim().length < 2) {
+    errors.push('Enter your kitchen name.');
+  }
+  if (typeof body.email !== 'string' || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(body.email.trim())) {
+    errors.push('Enter a valid email address.');
+  }
+  if (typeof body.phone !== 'string' || !isValidPhone(body.phone)) {
+    errors.push('Enter a valid Sri Lankan phone number.');
+  }
+  if (typeof body.address !== 'string' || body.address.trim().length < 5) {
+    errors.push('Enter your kitchen address.');
+  }
+  if (typeof body.password !== 'string' || body.password.length < 8) {
+    errors.push('Password must be at least 8 characters.');
+  } else {
+    if (!/[a-zA-Z]/.test(body.password)) {
+      errors.push('Password must include at least one letter.');
+    }
+    if (!/[0-9]/.test(body.password)) {
+      errors.push('Password must include at least one number.');
+    }
+  }
+  return errors;
+}
+
 module.exports = {
   validateAuth,
   validateRegistration,
+  validateCookRegistration,
   validatePasswordReset,
   isValidPhone,
   normalizePhone,
@@ -96,3 +127,4 @@ module.exports = {
   isValidVehiclePlate,
   isValidPostalCode,
 };
+
