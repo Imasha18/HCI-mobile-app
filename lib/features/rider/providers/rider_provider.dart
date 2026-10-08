@@ -270,8 +270,13 @@ class RiderNotifier extends StateNotifier<RiderState> {
     }
   }
 
-  Future<bool> updateProfile(Map<String, dynamic> updateData) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<Map<String, dynamic>> updateProfile(
+    Map<String, dynamic> updateData, {
+    bool setGlobalLoading = false,
+  }) async {
+    if (setGlobalLoading) {
+      state = state.copyWith(isLoading: true, clearError: true);
+    }
     try {
       final response = await _client.dio.put('/rider/profile', data: updateData);
       final updatedRider = response.data['data'] as Map<String, dynamic>;
@@ -282,20 +287,134 @@ class RiderNotifier extends StateNotifier<RiderState> {
         isOnline: updatedRider['isOnline'] as bool? ?? state.isOnline,
       );
       await fetchDashboard(forceRefresh: true);
-      return true;
+      return {
+        'success': true,
+        'message': response.data['message']?.toString() ?? 'Profile updated successfully',
+        'data': updatedRider,
+      };
     } on DioException catch (e) {
+      final msg = ApiClient.messageFrom(e);
       state = state.copyWith(
         isLoading: false,
-        error: ApiClient.messageFrom(e),
+        error: msg,
       );
-      return false;
+      return {'success': false, 'message': msg};
     } catch (e) {
+      final msg = 'Failed to update profile: $e';
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to update profile.',
+        error: msg,
       );
-      return false;
+      return {'success': false, 'message': msg};
     }
+  }
+
+  Future<Map<String, dynamic>> uploadDocument({
+    required String fileUrl,
+    String? fileName,
+  }) async {
+    try {
+      final res = await _client.dio.post('/rider/documents/upload', data: {
+        'fileUrl': fileUrl,
+        'fileName': fileName ?? 'Document',
+      });
+      if (res.data['success'] == true) {
+        return {
+          'success': true,
+          'data': res.data['data'],
+          'message': res.data['message']?.toString() ?? 'Document uploaded successfully',
+        };
+      }
+      return {'success': false, 'message': res.data['message']?.toString() ?? 'Upload failed'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': ApiClient.messageFrom(e)};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadOrReplaceDocument({
+    required String documentKey,
+    required String fileUrl,
+    String? fileName,
+  }) async {
+    try {
+      final res = await _client.dio.post(
+        '/rider/documents',
+        data: {
+          'type': documentKey,
+          'fileUrl': fileUrl,
+          'fileName': fileName ?? '$documentKey Document',
+        },
+      );
+      if (res.data['success'] == true) {
+        final updatedRider = res.data['data'] as Map<String, dynamic>;
+        _client.clearCache('/rider');
+        state = state.copyWith(
+          rider: updatedRider,
+          isOnline: updatedRider['isOnline'] as bool? ?? state.isOnline,
+        );
+        await fetchProfile(forceRefresh: true);
+        await fetchDashboard(forceRefresh: true);
+        return {
+          'success': true,
+          'data': updatedRider,
+          'message': res.data['message']?.toString() ?? 'Document uploaded successfully',
+        };
+      }
+      return {'success': false, 'message': res.data['message']?.toString() ?? 'Upload failed'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': ApiClient.messageFrom(e)};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> submitVerification(Map<String, dynamic> documents) async {
+    try {
+      final res = await _client.dio.post(
+        '/rider/verification/submit',
+        data: {'documents': documents},
+      );
+      if (res.data['success'] == true) {
+        final updatedRider = res.data['data'] as Map<String, dynamic>;
+        _client.clearCache('/rider');
+        state = state.copyWith(
+          rider: updatedRider,
+          isOnline: updatedRider['isOnline'] as bool? ?? state.isOnline,
+        );
+        await fetchProfile(forceRefresh: true);
+        await fetchDashboard(forceRefresh: true);
+        return {
+          'success': true,
+          'message': res.data['message']?.toString() ?? 'Documents submitted for verification.',
+          'data': updatedRider,
+        };
+      }
+      return {'success': false, 'message': res.data['message']?.toString() ?? 'Submission failed'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': ApiClient.messageFrom(e)};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchVerificationStatus() async {
+    try {
+      final res = await _client.dio.get('/rider/verification');
+      if (res.data['success'] == true) {
+        final data = res.data['data'] as Map<String, dynamic>;
+        if (state.rider != null) {
+          final updatedRider = Map<String, dynamic>.from(state.rider!);
+          updatedRider['verificationStatus'] = data['verificationStatus'];
+          updatedRider['isVerified'] = data['isVerified'];
+          updatedRider['verificationDocuments'] = data['verificationDocuments'];
+          state = state.copyWith(rider: updatedRider);
+        }
+        return data;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> updateLocation(double lat, double lng) async {

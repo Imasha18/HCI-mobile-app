@@ -7,6 +7,11 @@ const Notification = require('../models/Notification');
 const Earning = require('../models/Earning');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
+const {
+  normalizeDocKey,
+  normalizeVerificationDocuments,
+  calculateRiderVerificationStatus,
+} = require('./riderController');
 
 // 1. Dashboard / Summary
 async function getAdminSummary(req, res) {
@@ -106,11 +111,25 @@ async function getUsers(req, res) {
       const { page, limit, skip } = parsePagination(req.query, 15);
       const total = await User.countDocuments(filter);
       const users = await User.find(filter).sort({ createdAt: -1 }).select('-password').skip(skip).limit(limit);
-      return sendSuccess(res, users, 'Success', 200, buildPaginationMeta(page, limit, total, users.length));
+      const normalizedUsers = users.map((u) => {
+        const obj = u.toObject();
+        if (obj.role === 'rider') {
+          obj.verificationDocuments = normalizeVerificationDocuments(obj.verificationDocuments);
+        }
+        return obj;
+      });
+      return sendSuccess(res, normalizedUsers, 'Success', 200, buildPaginationMeta(page, limit, total, users.length));
     }
 
     const users = await User.find(filter).sort({ createdAt: -1 }).select('-password');
-    return sendSuccess(res, users);
+    const normalizedUsers = users.map((u) => {
+      const obj = u.toObject();
+      if (obj.role === 'rider') {
+        obj.verificationDocuments = normalizeVerificationDocuments(obj.verificationDocuments);
+      }
+      return obj;
+    });
+    return sendSuccess(res, normalizedUsers);
   } catch (error) {
     return sendError(res, error.message);
   }
@@ -178,11 +197,57 @@ async function getRiders(req, res) {
       const { page, limit, skip } = parsePagination(req.query, 15);
       const total = await User.countDocuments(filter);
       const riders = await User.find(filter).sort({ createdAt: -1 }).select('-password').skip(skip).limit(limit);
-      return sendSuccess(res, riders, 'Success', 200, buildPaginationMeta(page, limit, total, riders.length));
+      const normalizedRiders = riders.map((r) => {
+        const obj = r.toObject();
+        obj.verificationDocuments = normalizeVerificationDocuments(obj.verificationDocuments);
+        return obj;
+      });
+      return sendSuccess(res, normalizedRiders, 'Success', 200, buildPaginationMeta(page, limit, total, riders.length));
     }
 
     const riders = await User.find(filter).sort({ createdAt: -1 }).select('-password');
-    return sendSuccess(res, riders);
+    const normalizedRiders = riders.map((r) => {
+      const obj = r.toObject();
+      obj.verificationDocuments = normalizeVerificationDocuments(obj.verificationDocuments);
+      return obj;
+    });
+    return sendSuccess(res, normalizedRiders);
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+}
+
+async function getRiderById(req, res) {
+  try {
+    const { id } = req.params;
+    const rider = await User.findOne({ _id: id, role: 'rider' }).select('-password');
+    if (!rider) return sendError(res, 'Rider not found', 404);
+
+    const riderObj = rider.toObject();
+    riderObj.verificationDocuments = normalizeVerificationDocuments(riderObj.verificationDocuments);
+    return sendSuccess(res, riderObj, 'Rider details retrieved successfully');
+  } catch (error) {
+    return sendError(res, error.message);
+  }
+}
+
+async function getRiderDocuments(req, res) {
+  try {
+    const { id } = req.params;
+    const rider = await User.findOne({ _id: id, role: 'rider' }).select('name email phone vehicleDetails verificationDocuments verificationStatus isVerified');
+    if (!rider) return sendError(res, 'Rider not found', 404);
+
+    const normalized = normalizeVerificationDocuments(rider.verificationDocuments);
+    return sendSuccess(res, {
+      riderId: rider._id,
+      name: rider.name,
+      email: rider.email,
+      phone: rider.phone,
+      vehicleDetails: rider.vehicleDetails,
+      verificationStatus: rider.verificationStatus,
+      isVerified: rider.isVerified,
+      documents: normalized,
+    }, 'Rider documents retrieved successfully');
   } catch (error) {
     return sendError(res, error.message);
   }
@@ -257,30 +322,96 @@ async function verifyCook(req, res) {
 async function verifyRider(req, res) {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'approved' or 'rejected'
+    const rawKey = req.params.documentKey || req.body.documentKey || req.body.key;
+    const documentKey = normalizeDocKey(rawKey);
+    const { status, reason } = req.body; // 'approved' or 'rejected'
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return sendError(res, 'Status must be approved or rejected', 400);
+    }
     const isApproved = status === 'approved';
 
-    const rider = await User.findOneAndUpdate(
-      { _id: id, role: 'rider' },
-      {
-        isVerified: isApproved,
-        verificationStatus: isApproved ? 'approved' : 'rejected',
-      },
-      { new: true }
-    ).select('-password');
+    if (!isApproved && (!reason || !reason.trim())) {
+      return sendError(res, 'Please provide a reason for rejecting the verification request.', 400);
+    }
 
+    const rider = await User.findOne({ _id: id, role: 'rider' });
     if (!rider) return sendError(res, 'Rider not found', 404);
 
+    const normalizedDocs = normalizeVerificationDocuments(rider.verificationDocuments);
+    const adminId = req.user ? req.user.id : null;
+
+    if (documentKey && normalizedDocs[documentKey]) {
+      // Individual document decision
+      if (isApproved) {
+        normalizedDocs[documentKey].status = 'approved';
+        normalizedDocs[documentKey].rejectionReason = null;
+        normalizedDocs[documentKey].approvedAt = new Date();
+        normalizedDocs[documentKey].approvedBy = adminId;
+      } else {
+        normalizedDocs[documentKey].status = 'rejected';
+        normalizedDocs[documentKey].rejectionReason = reason.trim();
+        normalizedDocs[documentKey].approvedAt = null;
+        normalizedDocs[documentKey].approvedBy = null;
+      }
+    } else {
+      // Bulk rider documents decision
+      const standardKeys = ['nic', 'drivingLicense', 'vehicleDocument', 'insurance'];
+      if (isApproved) {
+        for (const k of standardKeys) {
+          if (normalizedDocs[k].fileUrl) {
+            normalizedDocs[k].status = 'approved';
+            normalizedDocs[k].rejectionReason = null;
+            normalizedDocs[k].approvedAt = new Date();
+            normalizedDocs[k].approvedBy = adminId;
+          }
+        }
+      } else {
+        const rejectionReason = reason.trim();
+        for (const k of standardKeys) {
+          if (normalizedDocs[k].fileUrl && normalizedDocs[k].status !== 'approved') {
+            normalizedDocs[k].status = 'rejected';
+            normalizedDocs[k].rejectionReason = rejectionReason;
+            normalizedDocs[k].approvedAt = null;
+            normalizedDocs[k].approvedBy = null;
+          }
+        }
+      }
+    }
+
+    // Recalculate overall rider verification status from documents
+    const { verificationStatus, isVerified } = calculateRiderVerificationStatus(normalizedDocs);
+
+    rider.verificationDocuments = normalizedDocs;
+    rider.verificationStatus = verificationStatus;
+    rider.isVerified = isVerified;
+    rider.markModified('verificationDocuments');
+    await rider.save();
+
     // Create a notification for the rider
+    const title = documentKey
+      ? `Document Update: ${documentKey} ${isApproved ? 'Approved' : 'Needs Attention'}`
+      : (isApproved ? 'Rider Profile Verified!' : 'Verification Application Needs Attention');
+
+    const body = isApproved
+      ? (documentKey
+          ? `Your ${documentKey} document has been approved by admin.`
+          : 'Congratulations! All your delivery partner documents have been approved.')
+      : (documentKey
+          ? `Your ${documentKey} document was rejected: ${reason.trim()}`
+          : `Your verification documents require attention: ${reason.trim()}`);
+
     await Notification.create({
       user: rider._id,
-      title: isApproved ? 'Rider Profile Verified!' : 'Verification Application Update',
-      body: isApproved
-        ? 'Your delivery partner profile has been approved. You can now accept deliveries!'
-        : 'Your rider verification application was reviewed and not approved.',
-    });
+      title,
+      body,
+    }).catch(() => {});
 
-    return sendSuccess(res, rider, `Rider ${status} successfully`);
+    const publicData = await User.findById(rider._id).select('-password');
+    const riderObj = publicData.toObject();
+    riderObj.verificationDocuments = normalizeVerificationDocuments(riderObj.verificationDocuments);
+
+    return sendSuccess(res, riderObj, `Rider verification ${status} successfully`);
   } catch (error) {
     return sendError(res, error.message);
   }
@@ -574,6 +705,8 @@ module.exports = {
   getCustomers,
   getCooks,
   getRiders,
+  getRiderById,
+  getRiderDocuments,
   blockUser,
   unblockUser,
   deleteUser,

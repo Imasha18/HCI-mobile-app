@@ -17,15 +17,22 @@ const userSchema = new mongoose.Schema({
     model: { type: String, default: '' },
     plateNumber: { type: String, default: '' },
   },
-  emailVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
-  verificationStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
-  verificationDocuments: [{
-    title: { type: String, default: 'National ID / Driving License' },
-    documentUrl: { type: String, default: '' },
-    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-    uploadedAt: { type: Date, default: Date.now }
-  }],
+  emailVerified: { type: Boolean, default: false },
+  verificationStatus: {
+    type: String,
+    enum: ['not_submitted', 'pending', 'approved', 'rejected'],
+    default: 'not_submitted',
+  },
+  verificationDocuments: {
+    type: mongoose.Schema.Types.Mixed,
+    default: () => ({
+      nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+      drivingLicense: { type: 'drivingLicense', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+      vehicleDocument: { type: 'vehicleDocument', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+      insurance: { type: 'insurance', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+    }),
+  },
   verificationCodeHash: { type: String, select: false },
   verificationExpiresAt: { type: Date, select: false },
   resetCodeHash: { type: String, select: false },

@@ -61,8 +61,7 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
 
       final pendingRiders = allRiders.where((r) {
         final status = r['verificationStatus'] as String? ?? '';
-        final isVerified = r['isVerified'] as bool? ?? false;
-        return status == 'pending' || !isVerified;
+        return status == 'pending';
       }).toList();
 
       state = state.copyWith(
@@ -97,16 +96,25 @@ class VerificationNotifier extends StateNotifier<VerificationState> {
     }
   }
 
-  Future<bool> verifyRider(String id, String status) async {
+  Future<Map<String, dynamic>> verifyRider(String id, String status, {String? reason, String? documentKey}) async {
     try {
-      final res = await _client.dio.patch('/admin/riders/$id/verify', data: {'status': status});
+      final res = await _client.dio.patch(
+        '/admin/riders/$id/verify',
+        data: {
+          'status': status,
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+          'documentKey': ?documentKey,
+        },
+      );
       if (res.data['success'] == true) {
         await loadPending();
-        return true;
+        return {'success': true, 'message': res.data['message']?.toString() ?? 'Rider verification updated'};
       }
-      return false;
-    } catch (_) {
-      return false;
+      return {'success': false, 'message': res.data['message']?.toString() ?? 'Verification failed'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': ApiClient.messageFrom(e)};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
     }
   }
 }

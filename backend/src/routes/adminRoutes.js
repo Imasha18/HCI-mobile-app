@@ -5,6 +5,8 @@ const {
   getCustomers,
   getCooks,
   getRiders,
+  getRiderById,
+  getRiderDocuments,
   blockUser,
   unblockUser,
   deleteUser,
@@ -36,12 +38,16 @@ router.get('/users', getUsers);
 router.get('/customers', getCustomers);
 router.get('/cooks', getCooks);
 router.get('/riders', getRiders);
+router.get('/riders/:id', getRiderById);
+router.get('/riders/:id/documents', getRiderDocuments);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/unblock', unblockUser);
 router.delete('/users/:id', deleteUser);
 
 // Verification
 router.patch('/cooks/:id/verify', verifyCook);
+router.patch('/riders/:id/documents/:documentKey/status', verifyRider);
+router.patch('/riders/:id/documents/:documentKey', verifyRider);
 router.patch('/riders/:id/verify', verifyRider);
 
 // Meal Monitoring
