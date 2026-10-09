@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../models/user_model.dart';
 import '../../../services/api_client.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/google_auth_service.dart';
 
 final customerProvider = NotifierProvider<CustomerNotifier, CustomerState>(
   CustomerNotifier.new,
@@ -142,6 +143,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
   Future<void> logout() async {
     await _storage.delete(key: 'auth_token');
     ApiClient().clearCache();
+    await GoogleAuthService.instance.signOut();
     state = const CustomerState();
   }
 
@@ -266,24 +268,36 @@ class CustomerNotifier extends Notifier<CustomerState> {
     }
   }
 
-  Future<bool> googleLogin(String idToken) async {
+  /// Exchanges a Google credential for a HomeBite session. The backend
+  /// verifies the credential with Google and decides the user's role.
+  Future<UserModel?> googleLogin(GoogleCredential credential) async {
+    state = state.copyWith(clearError: true);
     try {
       final response = await ApiClient().dio.post(
         '/auth/google',
-        data: {'idToken': idToken},
+        data: credential.toJson(),
       );
       final payload = response.data['data'] as Map<String, dynamic>;
       final token = payload['token'] as String;
-      await _storage.write(
-        key: 'auth_token',
-        value: token,
-      );
+      final userJson = payload['user'] as Map<String, dynamic>;
+
+      ApiClient().clearCache();
+      await _storage.write(key: 'auth_token', value: token);
       ApiClient().updateAuthToken(token);
-      state = CustomerState(user: payload['user'] as Map<String, dynamic>);
-      return true;
+
+      state = CustomerState(user: _normalizeUser(userJson));
+      return UserModel.fromJson(userJson);
     } on DioException catch (error) {
+      // Don't keep the cached Google account if HomeBite rejected it,
+      // so the user can pick a different account next time.
+      await GoogleAuthService.instance.signOut();
       state = CustomerState(error: ApiClient.messageFrom(error));
-      return false;
+      return null;
+    } catch (_) {
+      state = const CustomerState(
+        error: 'Google Sign-In is currently unavailable. Please try again.',
+      );
+      return null;
     }
   }
 

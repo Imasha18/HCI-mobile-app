@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
-const { OAuth2Client } = require('google-auth-library');
+const { verifyGoogleCredential, GoogleAuthError } = require('../services/googleAuthService');
 const User = require('../models/User');
 const PendingRegistration = require('../models/PendingRegistration');
 const generateToken = require('../utils/generateToken');
@@ -336,25 +336,64 @@ async function resendVerification(req, res) {
 }
 
 async function googleLogin(req, res) {
-  if (!environment.googleClientId) return res.status(503).json({ success: false, message: 'Google authentication is not configured' });
-  const client = new OAuth2Client(environment.googleClientId);
-  const ticket = await client.verifyIdToken({ idToken: req.body.idToken, audience: environment.googleClientId });
-  const payload = ticket.getPayload();
-  if (!payload?.email || !payload.email_verified) return res.status(401).json({ success: false, message: 'A verified Google email is required' });
-  let user = await User.findOne({ email: payload.email.toLowerCase() });
-  if (!user) {
-    user = await User.create({
-      name: payload.name || payload.email.split('@')[0],
-      email: payload.email.toLowerCase(),
-      password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
-      role: 'customer',
-      emailVerified: true,
-      googleId: payload.sub,
-      profileImage: payload.picture,
+  let identity;
+  try {
+    identity = await verifyGoogleCredential({
+      idToken: req.body?.idToken,
+      accessToken: req.body?.accessToken,
     });
+  } catch (error) {
+    const status = error instanceof GoogleAuthError ? error.status : 401;
+    return res.status(status).json({ success: false, message: error.message });
   }
-  if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
-  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
+
+  try {
+    let user = await User.findOne({ email: identity.email });
+
+    if (user) {
+      // Existing HomeBite account with the same verified email: link it rather
+      // than creating a duplicate. Role always comes from the database.
+      if (user.isBlocked) {
+        return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
+      }
+      if (user.role !== 'customer') {
+        return res.status(403).json({
+          success: false,
+          message: 'Google sign-in is available for customer accounts only. Please use your email and password.',
+        });
+      }
+      if (user.googleId && user.googleId !== identity.sub) {
+        return res.status(409).json({
+          success: false,
+          message: 'This email is already linked to a different Google account.',
+        });
+      }
+      let changed = false;
+      if (!user.googleId) { user.googleId = identity.sub; changed = true; }
+      if (!user.emailVerified) { user.emailVerified = true; changed = true; }
+      if (!user.profileImage && identity.picture) { user.profileImage = identity.picture; changed = true; }
+      if (changed) await user.save();
+    } else {
+      user = await User.create({
+        name: identity.name || identity.email.split('@')[0],
+        email: identity.email,
+        password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+        role: 'customer',
+        emailVerified: true,
+        googleId: identity.sub,
+        profileImage: identity.picture || '',
+      });
+      // A half-finished email/password signup for this address is now obsolete.
+      await PendingRegistration.deleteOne({ email: identity.email });
+    }
+
+    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    }
+    return res.status(500).json({ success: false, message: 'Google sign-in failed. Please try again.' });
+  }
 }
 
 async function requestPasswordReset(req, res) {

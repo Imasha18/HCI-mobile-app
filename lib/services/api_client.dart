@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/api_config.dart';
@@ -131,29 +132,55 @@ class ApiClient {
         return (data['error'] as String).trim();
       }
     }
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout ||
-        error.type == DioExceptionType.sendTimeout) {
-      return 'Connection timed out. Please check your internet connection.';
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return 'The server took too long to respond. Please try again.';
+      case DioExceptionType.badCertificate:
+        return 'Secure connection to the server failed (invalid certificate).';
+      case DioExceptionType.cancel:
+        return 'Request was cancelled.';
+      case DioExceptionType.connectionError:
+        // In browsers, a refused connection and a CORS rejection are both
+        // reported as an opaque network error, so mention both causes.
+        if (kIsWeb) {
+          return 'Unable to connect to server at ${ApiConfig.resolvedBaseUrl}. '
+              'The server may be offline, or the browser blocked the request '
+              'due to CORS configuration.';
+        }
+        return 'Unable to connect to server. Please check your connection.';
+      default:
+        break;
     }
-    if (error.response?.statusCode == 401) {
-      return 'Your session has expired. Please log in again.';
+
+    final status = error.response?.statusCode;
+    switch (status) {
+      case 400:
+        return 'Invalid request. Please check your inputs.';
+      case 401:
+        final path = error.requestOptions.path;
+        if (path.contains('/auth/login')) return 'Invalid email or password.';
+        return 'Your session has expired. Please log in again.';
+      case 403:
+        return 'Access denied. You do not have permission for this action.';
+      case 404:
+        return 'Requested resource was not found.';
+      case 409:
+        return 'This record already exists. Please verify your details.';
+      case 422:
+        return 'Invalid request data. Please check your inputs.';
+      case 429:
+        return 'Too many requests. Please wait a moment and try again.';
     }
-    if (error.response?.statusCode == 403) {
-      return 'Access denied. You do not have permission for this action.';
+    if (status != null && status >= 500) {
+      return 'Server error. Please try again.';
     }
-    if (error.response?.statusCode == 404) {
-      return 'Requested resource was not found.';
+    if (status == null) {
+      return kIsWeb
+          ? 'Unable to connect to server. The browser may have blocked the request (CORS).'
+          : 'Unable to connect to server.';
     }
-    if (error.response?.statusCode == 409) {
-      return 'This record already exists. Please verify your details.';
-    }
-    if (error.response?.statusCode == 422) {
-      return 'Invalid request data. Please check your inputs.';
-    }
-    if (error.response?.statusCode == 500) {
-      return 'Internal server error. Please try again shortly.';
-    }
-    return 'Unable to connect to HomeBite. Check that the backend is running.';
+    return 'Something went wrong (HTTP $status). Please try again.';
   }
 }
