@@ -85,6 +85,13 @@ test('resend-verification rejects missing email', async () => {
   expect(response.body.message).toBe('Email is required');
 });
 
+test('google login returns proper error for invalid or missing idToken', async () => {
+  const response = await request(app)
+    .post('/api/auth/google')
+    .send({ idToken: 'invalid-token', role: 'cook' });
+  expect([401, 503]).toContain(response.statusCode);
+});
+
 describe('Sri Lankan Input Validation and Normalization', () => {
   test('validates valid Sri Lankan mobile and landline phone formats', () => {
     expect(isValidPhone('0771234567')).toBe(true);

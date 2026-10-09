@@ -235,6 +235,8 @@ async function login(req, res) {
         user.kitchenName = `${user.name || 'Home Cook'}'s Kitchen`;
       }
       await user.save();
+    } else if (role === 'customer' && (user.role === 'cook' || user.role === 'rider')) {
+      // Cooks and riders can access customer portal
     } else if (user.role === 'admin') {
       // Admin can log in to any portal
     } else {
@@ -402,31 +404,50 @@ async function resendVerification(req, res) {
 async function googleLogin(req, res) {
   if (!environment.googleClientId) return res.status(503).json({ success: false, message: 'Google authentication is not configured' });
   const client = new OAuth2Client(environment.googleClientId);
-  const ticket = await client.verifyIdToken({ idToken: req.body.idToken, audience: environment.googleClientId });
+  let ticket;
+  try {
+    ticket = await client.verifyIdToken({ idToken: req.body.idToken, audience: environment.googleClientId });
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid Google authentication token' });
+  }
   const payload = ticket.getPayload();
   if (!payload?.email || !payload.email_verified) return res.status(401).json({ success: false, message: 'A verified Google email is required' });
   const requestedRole = req.body.role || 'customer';
   let user = await User.findOne({ email: payload.email.toLowerCase() });
   if (!user) {
+    const kitchenName = req.body.kitchenName || (requestedRole === 'cook' ? `${payload.name || 'Chef'}'s Kitchen` : undefined);
     user = await User.create({
-      name: payload.name || payload.email.split('@')[0],
+      name: req.body.name || payload.name || payload.email.split('@')[0],
       email: payload.email.toLowerCase(),
       password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
       role: requestedRole,
-      kitchenName: req.body.kitchenName || `${payload.name || 'Chef'}'s Kitchen`,
-      phone: req.body.phone || '',
-      address: req.body.address || '',
+      kitchenName: kitchenName,
+      phone: req.body.phone ? normalizePhone(req.body.phone) : '',
+      address: req.body.address ? req.body.address.trim() : '',
       emailVerified: true,
       googleId: payload.sub,
       profileImage: payload.picture,
     });
-  } else if (requestedRole === 'cook' && user.role === 'customer') {
-    user.role = 'cook';
-    if (req.body.kitchenName) user.kitchenName = req.body.kitchenName;
+  } else {
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
+    }
+    if (!user.googleId) user.googleId = payload.sub;
+    if (!user.emailVerified) user.emailVerified = true;
+    if (!user.profileImage && payload.picture) user.profileImage = payload.picture;
+    if (requestedRole === 'cook') {
+      if (user.role === 'customer') {
+        user.role = 'cook';
+      }
+      if (req.body.kitchenName) {
+        user.kitchenName = req.body.kitchenName.trim();
+      } else if (!user.kitchenName) {
+        user.kitchenName = `${user.name || payload.name || 'Home Cook'}'s Kitchen`;
+      }
+      if (req.body.phone) user.phone = normalizePhone(req.body.phone);
+      if (req.body.address) user.address = req.body.address.trim();
+    }
     await user.save();
-  }
-  if (requestedRole && user.role !== requestedRole && user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: `${requestedRole.charAt(0).toUpperCase() + requestedRole.slice(1)} access only` });
   }
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
 }

@@ -23,6 +23,16 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(customerProvider.notifier).clearError();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -64,7 +74,21 @@ class _CustomerLoginScreenState extends ConsumerState<CustomerLoginScreen> {
           .read(customerProvider.notifier)
           .googleLogin(idToken);
       if (success && mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        final loggedUser = ref.read(customerProvider).user;
+        final role = loggedUser?['role']?.toString();
+        if (role == 'admin') {
+          ref.read(adminProvider.notifier).setAdminUser(loggedUser!);
+          await AdminSessionManager().startSession();
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+          }
+        } else if (role == 'cook') {
+          Navigator.pushReplacementNamed(context, AppRoutes.cookDashboard);
+        } else if (role == 'rider') {
+          Navigator.pushReplacementNamed(context, AppRoutes.riderDashboard);
+        } else {
+          Navigator.pushReplacementNamed(context, AppRoutes.home);
+        }
       }
     } catch (error) {
       if (mounted) {

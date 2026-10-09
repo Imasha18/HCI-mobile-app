@@ -23,6 +23,16 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
   bool _isGoogleLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(cookProvider.notifier).clearError();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

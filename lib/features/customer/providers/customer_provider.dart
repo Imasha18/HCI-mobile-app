@@ -95,6 +95,12 @@ class CustomerNotifier extends Notifier<CustomerState> {
     };
   }
 
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(clearError: true);
+    }
+  }
+
   Future<bool> loadProfile({bool forceRefresh = false}) async {
     if (!forceRefresh && state.user != null) {
       return true;
@@ -115,14 +121,6 @@ class CustomerNotifier extends Notifier<CustomerState> {
       final payload = response.data['data'] as Map<String, dynamic>? ??
           <String, dynamic>{};
       final user = _normalizeUser(payload);
-      if (user['role'] != 'customer') {
-        state = state.copyWith(
-          isLoading: false,
-          isRefreshing: false,
-          error: 'Customer access only.',
-        );
-        return false;
-      }
 
       state = state.copyWith(
         isLoading: false,
@@ -160,7 +158,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
       final payload = response.data['data'] as Map<String, dynamic>? ??
           <String, dynamic>{};
       final user = _normalizeUser(payload);
-      if (user['role'] != 'customer') return false;
+      if ((user['id']?.toString() ?? '').isEmpty) return false;
       state = state.copyWith(
         user: user,
         isLoading: false,

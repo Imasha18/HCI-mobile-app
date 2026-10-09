@@ -62,6 +62,12 @@ class CookNotifier extends StateNotifier<CookState> {
   final ApiClient _client;
   final FlutterSecureStorage _storage;
 
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(clearError: true);
+    }
+  }
+
   Future<void> checkAuthSession() async {
     final token = await _storage.read(key: 'auth_token');
     if (token != null) {
