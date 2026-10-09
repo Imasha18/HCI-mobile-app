@@ -139,7 +139,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      addressCtrl.dispose();
+      phoneCtrl.dispose();
+    });
   }
 
   Future<void> _placeOrder() async {

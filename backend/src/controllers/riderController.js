@@ -7,6 +7,7 @@ const Notification = require('../models/Notification');
 const { sendSuccess } = require('../utils/apiResponse');
 const { uploadImage } = require('../services/imageService');
 const { parsePagination, buildPaginationMeta } = require('../utils/pagination');
+const { normalizePhone } = require('../validators/authValidator');
 
 // Helper to normalize document key from snake_case or camelCase or aliases
 function normalizeDocKey(key) {
@@ -122,7 +123,7 @@ async function updateRiderProfile(req, res) {
     }
 
     if (req.body.phone !== undefined) {
-      rider.phone = String(req.body.phone).trim();
+      rider.phone = normalizePhone(String(req.body.phone).trim());
     }
 
     if (req.body.address !== undefined) {
@@ -152,14 +153,14 @@ async function updateRiderProfile(req, res) {
       }
       const plate = req.body.vehicleDetails.plateNumber ?? req.body.vehicleDetails.vehicleNumber;
       if (plate !== undefined) {
-        rider.vehicleDetails.plateNumber = String(plate).trim();
+        rider.vehicleDetails.plateNumber = String(plate).trim().toUpperCase();
       }
     }
 
     // Direct / flat fields support (e.g. vehicleNumber, vehicleType, vehicleModel)
     const directPlate = req.body.vehicleNumber ?? req.body.vehiclePlateNumber ?? req.body.plateNumber;
     if (directPlate !== undefined) {
-      rider.vehicleDetails.plateNumber = String(directPlate).trim();
+      rider.vehicleDetails.plateNumber = String(directPlate).trim().toUpperCase();
     }
 
     const directType = req.body.vehicleType ?? req.body.type;
