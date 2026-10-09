@@ -180,6 +180,18 @@ async function toggleAvailability(req, res) {
   return sendSuccess(res, meal, `Meal availability updated to ${meal.available}`);
 }
 
+async function getCategories(req, res) {
+  try {
+    const rawCategories = await Meal.distinct('category', { available: true });
+    const standardCategories = ['All', 'Rice', 'Curry', 'Kottu', 'Healthy', 'Lunch', 'Dinner'];
+    const dbCategories = rawCategories.filter(Boolean);
+    const combined = Array.from(new Set(['All', ...dbCategories, ...standardCategories]));
+    return sendSuccess(res, combined);
+  } catch (error) {
+    return sendSuccess(res, ['All', 'Rice', 'Curry', 'Kottu', 'Healthy', 'Lunch', 'Dinner']);
+  }
+}
+
 module.exports = {
   listMeals,
   searchMeals,
@@ -188,4 +200,5 @@ module.exports = {
   updateMeal,
   deleteMeal,
   toggleAvailability,
+  getCategories,
 };

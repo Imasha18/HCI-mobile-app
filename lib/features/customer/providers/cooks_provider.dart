@@ -12,21 +12,34 @@ class CooksNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
   Future<List<Map<String, dynamic>>> build() => fetchCooks();
 
   Future<List<Map<String, dynamic>>> fetchCooks({bool forceRefresh = false}) async {
+    final currentCooks = state.valueOrNull ?? [];
     try {
       final response = await ApiClient().getCached(
         '/cooks',
         ttl: const Duration(minutes: 2),
         forceRefresh: forceRefresh,
       );
-      final list = (response.data['data'] as List<dynamic>?) ?? [];
-      final cooks = list.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+
+      final resData = response.data;
+      final dynamic rawList = resData is Map
+          ? (resData['data'] ?? resData['cooks'] ?? resData['kitchens'])
+          : (resData is List ? resData : null);
+
+      final List<dynamic> list = rawList is List ? rawList : const [];
+      final cooks = list
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+
       state = AsyncData(cooks);
       return cooks;
     } on DioException catch (error, stackTrace) {
+      if (currentCooks.isNotEmpty) return currentCooks;
       final exception = Exception(ApiClient.messageFrom(error));
       state = AsyncError(exception, stackTrace);
       return [];
     } catch (e, stackTrace) {
+      if (currentCooks.isNotEmpty) return currentCooks;
       state = AsyncError(e, stackTrace);
       return [];
     }

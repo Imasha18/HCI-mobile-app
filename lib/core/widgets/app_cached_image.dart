@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
+
 class AppCachedImage extends StatelessWidget {
   final String? imageUrl;
   final double? width;
@@ -27,14 +29,18 @@ class AppCachedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = imageUrl?.trim() ?? '';
+    String raw = imageUrl?.trim() ?? '';
+    if (raw.isNotEmpty && !raw.startsWith('http://') && !raw.startsWith('https://')) {
+      final origin = ApiConfig.serverOrigin;
+      raw = raw.startsWith('/') ? '$origin$raw' : '$origin/$raw';
+    }
 
     Widget imageWidget;
-    if (url.isEmpty || !url.startsWith('http')) {
+    if (raw.isEmpty || (!raw.startsWith('http://') && !raw.startsWith('https://'))) {
       imageWidget = _buildFallback();
     } else {
       imageWidget = CachedNetworkImage(
-        imageUrl: url,
+        imageUrl: raw,
         width: width,
         height: height,
         fit: fit,

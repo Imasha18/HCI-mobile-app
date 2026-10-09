@@ -14,9 +14,20 @@ class ApiConfig {
 
   static String get resolvedBaseUrl {
     if (baseUrl.isNotEmpty) return baseUrl;
+    if (kIsWeb) {
+      return 'http://localhost:5000/api';
+    }
     return defaultTargetPlatform == TargetPlatform.android
         ? 'http://10.0.2.2:5000/api'
-        : 'http://127.0.0.1:5000/api';
+        : 'http://localhost:5000/api';
+  }
+
+  static String get serverOrigin {
+    final base = resolvedBaseUrl;
+    if (base.endsWith('/api')) {
+      return base.substring(0, base.length - 4);
+    }
+    return base;
   }
 
   static const connectTimeout = Duration(seconds: 15);
