@@ -137,3 +137,79 @@ describe('Sri Lankan Input Validation and Normalization', () => {
     expect(isValidPostalCode('ABCDE')).toBe(false);
   });
 });
+
+describe('PendingRegistration Model and Registration Flow', () => {
+  const PendingRegistration = require('../models/PendingRegistration');
+
+  test('PendingRegistration is a Mongoose Model with findOneAndUpdate function', () => {
+    expect(typeof PendingRegistration).toBe('function');
+    expect(typeof PendingRegistration.findOneAndUpdate).toBe('function');
+    expect(typeof PendingRegistration.findOne).toBe('function');
+    expect(typeof PendingRegistration.deleteOne).toBe('function');
+  });
+
+  test('creates a valid PendingRegistration document with hashed password and verification hash', () => {
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const pending = new PendingRegistration({
+      name: 'Nimal Perera',
+      email: 'nimal@example.com',
+      password: 'hashed_password_123',
+      phone: '+94 77 123 4567',
+      address: '42 Galle Road, Colombo 03',
+      role: 'customer',
+      verificationCodeHash: 'abcdef1234567890',
+      verificationExpiresAt: expiresAt,
+    });
+
+    expect(pending.name).toBe('Nimal Perera');
+    expect(pending.email).toBe('nimal@example.com');
+    expect(pending.password).toBe('hashed_password_123');
+    expect(pending.phone).toBe('+94 77 123 4567');
+    expect(pending.address).toBe('42 Galle Road, Colombo 03');
+    expect(pending.role).toBe('customer');
+    expect(pending.verificationCodeHash).toBe('abcdef1234567890');
+    expect(pending.verificationExpiresAt).toBe(expiresAt);
+  });
+
+  test('PendingRegistration model enforces required fields', () => {
+    const invalidPending = new PendingRegistration({});
+    const validationError = invalidPending.validateSync();
+
+    expect(validationError).toBeDefined();
+    expect(validationError.errors.name).toBeDefined();
+    expect(validationError.errors.email).toBeDefined();
+    expect(validationError.errors.password).toBeDefined();
+    expect(validationError.errors.verificationCodeHash).toBeDefined();
+    expect(validationError.errors.verificationExpiresAt).toBeDefined();
+  });
+
+  test('PendingRegistration supports rider vehicleDetails', () => {
+    const pendingRider = new PendingRegistration({
+      name: 'Kamal Silva',
+      email: 'kamal@example.com',
+      password: 'hashed_password_456',
+      phone: '+94 71 234 5678',
+      role: 'rider',
+      vehicleDetails: {
+        type: 'Motorbike',
+        model: 'Honda Dio',
+        plateNumber: 'WP BDF-4821',
+      },
+      verificationCodeHash: '123456abcdef',
+      verificationExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    });
+
+    expect(pendingRider.role).toBe('rider');
+    expect(pendingRider.vehicleDetails.plateNumber).toBe('WP BDF-4821');
+  });
+
+  test('email verification endpoint rejects missing verification code', async () => {
+    const response = await request(app)
+      .post('/api/auth/verify-email')
+      .send({ email: 'test@example.com', code: '' });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toBe('Verification code is required');
+  });
+});
+

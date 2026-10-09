@@ -39,54 +39,59 @@ function createVerificationCode() {
 }
 
 async function register(req, res) {
-  const { role } = req.body;
-  if (role === 'cook') {
-    return registerCook(req, res);
+  try {
+    const { role } = req.body;
+    if (role === 'cook') {
+      return registerCook(req, res);
+    }
+    if (role === 'rider') {
+      return registerRider(req, res);
+    }
+
+    const { name, email, password, phone, address } = req.body;
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const normalizedPhone = normalizePhone(phone);
+    const code = createVerificationCode();
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+    const expiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
+
+    // Store in temporary PendingRegistration collection; do not permanently save User until OTP verification
+    await PendingRegistration.findOneAndUpdate(
+      { email: normalizedEmail },
+      {
+        name: name.trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        phone: normalizedPhone,
+        address: address?.trim() || '',
+        role: 'customer',
+        verificationCodeHash: codeHash,
+        verificationExpiresAt: expiresAt,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await sendVerificationCode(normalizedEmail, code);
+
+    return sendSuccess(res, {
+      user: {
+        name: name.trim(),
+        email: normalizedEmail,
+        role: 'customer',
+        phone: normalizedPhone,
+        address: address?.trim() || '',
+        emailVerified: false,
+      },
+      emailVerificationRequired: true,
+    }, 'Verification code sent', 201);
+  } catch (error) {
+    console.error('Customer registration error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create account. Please try again.' });
   }
-  if (role === 'rider') {
-    return registerRider(req, res);
-  }
-
-  const { name, email, password, phone, address } = req.body;
-  const normalizedEmail = email.trim().toLowerCase();
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
-
-  const hashedPassword = await bcrypt.hash(password, 12);
-  const normalizedPhone = normalizePhone(phone);
-  const code = createVerificationCode();
-  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
-  const expiresAt = new Date(Date.now() + environment.verificationUrlMinutes * 60 * 1000);
-
-  // Store in temporary PendingRegistration collection; do not permanently save User until OTP verification
-  await PendingRegistration.findOneAndUpdate(
-    { email: normalizedEmail },
-    {
-      name: name.trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-      phone: normalizedPhone,
-      address: address?.trim() || '',
-      role: 'customer',
-      verificationCodeHash: codeHash,
-      verificationExpiresAt: expiresAt,
-    },
-    { upsert: true, new: true }
-  );
-
-  await sendVerificationCode(normalizedEmail, code);
-
-  return sendSuccess(res, {
-    user: {
-      name: name.trim(),
-      email: normalizedEmail,
-      role: 'customer',
-      phone: normalizedPhone,
-      address: address?.trim() || '',
-      emailVerified: false,
-    },
-    emailVerificationRequired: true,
-  }, 'Verification code sent', 201);
 }
 
 async function registerRider(req, res) {
@@ -97,7 +102,7 @@ async function registerRider(req, res) {
     }
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+    if (existing) return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const normalizedPhone = normalizePhone(phone);
@@ -123,7 +128,7 @@ async function registerRider(req, res) {
         verificationCodeHash: codeHash,
         verificationExpiresAt: expiresAt,
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     await sendVerificationCode(normalizedEmail, code);
@@ -140,7 +145,8 @@ async function registerRider(req, res) {
       emailVerificationRequired: true,
     }, 'Verification code sent', 201);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error('Rider registration error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create account. Please try again.' });
   }
 }
 
@@ -152,7 +158,7 @@ async function registerCook(req, res) {
     }
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
+    if (existing) return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const normalizedPhone = normalizePhone(phone) || '+94 77 123 4567';
@@ -174,7 +180,8 @@ async function registerCook(req, res) {
     notifyAdminNewVerification(user).catch(() => {});
     return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Cook registered successfully', 201);
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error('Cook registration error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create account. Please try again.' });
   }
 }
 
@@ -204,66 +211,78 @@ async function login(req, res) {
 }
 
 async function verifyEmail(req, res) {
-  const email = req.body.email.trim().toLowerCase();
-  const code = req.body.code ? req.body.code.trim() : '';
-  if (!code) {
-    return res.status(400).json({ success: false, message: 'Verification code is required' });
-  }
-  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
-
-  // 1. Check temporary PendingRegistration collection
-  const pending = await PendingRegistration.findOne({ email });
-  if (pending) {
-    if (pending.verificationCodeHash !== codeHash) {
-      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+  try {
+    const email = req.body.email.trim().toLowerCase();
+    const code = req.body.code ? req.body.code.trim() : '';
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Verification code is required' });
     }
-    if (!pending.verificationExpiresAt || pending.verificationExpiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one' });
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    // 1. Check temporary PendingRegistration collection
+    const pending = await PendingRegistration.findOne({ email });
+    if (pending) {
+      if (pending.verificationCodeHash !== codeHash) {
+        return res.status(400).json({ success: false, message: 'Invalid verification code' });
+      }
+      if (!pending.verificationExpiresAt || pending.verificationExpiresAt.getTime() < Date.now()) {
+        return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one' });
+      }
+
+      // Check permanent User again before creating
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        await PendingRegistration.deleteOne({ _id: pending._id });
+        return res.status(409).json({ success: false, message: 'An account already exists with this email.' });
+      }
+
+      const isRider = pending.role === 'rider';
+      const user = await User.create({
+        name: pending.name,
+        email: pending.email,
+        password: pending.password,
+        role: pending.role,
+        phone: pending.phone || '',
+        address: pending.address || '',
+        kitchenName: pending.kitchenName,
+        vehicleDetails: pending.vehicleDetails || { type: 'Motorbike', model: '', plateNumber: '' },
+        emailVerified: true,
+        isVerified: !isRider,
+        verificationStatus: isRider ? 'not_submitted' : 'approved',
+        verificationDocuments: isRider ? {
+          nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+          drivingLicense: { type: 'drivingLicense', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+          vehicleDocument: { type: 'vehicleDocument', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+          insurance: { type: 'insurance', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
+        } : {},
+      });
+
+      // Cleanup temporary registration (single-use OTP)
+      await PendingRegistration.deleteOne({ _id: pending._id });
+
+      if (isRider) {
+        notifyAdminNewVerification(user).catch(() => {});
+      }
+
+      return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
     }
 
-    const isRider = pending.role === 'rider';
-    const user = await User.create({
-      name: pending.name,
-      email: pending.email,
-      password: pending.password,
-      role: pending.role,
-      phone: pending.phone || '',
-      address: pending.address || '',
-      kitchenName: pending.kitchenName,
-      vehicleDetails: pending.vehicleDetails || { type: 'Motorbike', model: '', plateNumber: '' },
-      emailVerified: true,
-      isVerified: !isRider,
-      verificationStatus: isRider ? 'not_submitted' : 'approved',
-      verificationDocuments: isRider ? {
-        nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-        drivingLicense: { type: 'drivingLicense', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-        vehicleDocument: { type: 'vehicleDocument', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-        insurance: { type: 'insurance', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null, approvedBy: null },
-      } : {},
-    });
-
-    // Cleanup temporary registration (single-use OTP)
-    await PendingRegistration.deleteOne({ _id: pending._id });
-
-    if (isRider) {
-      notifyAdminNewVerification(user).catch(() => {});
+    // 2. Fallback for existing unverified User records
+    const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
+    if (!user || user.verificationCodeHash !== codeHash || !user.verificationExpiresAt || user.verificationExpiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
     }
+
+    user.emailVerified = true;
+    user.verificationCodeHash = undefined;
+    user.verificationExpiresAt = undefined;
+    await user.save();
 
     return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
+  } catch (error) {
+    console.error('Verify email error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to verify email. Please try again.' });
   }
-
-  // 2. Fallback for existing unverified User records
-  const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
-  if (!user || user.verificationCodeHash !== codeHash || !user.verificationExpiresAt || user.verificationExpiresAt.getTime() < Date.now()) {
-    return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
-  }
-
-  user.emailVerified = true;
-  user.verificationCodeHash = undefined;
-  user.verificationExpiresAt = undefined;
-  await user.save();
-
-  return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
 }
 
 async function resendVerification(req, res) {
