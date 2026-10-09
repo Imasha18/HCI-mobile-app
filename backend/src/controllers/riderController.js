@@ -29,7 +29,7 @@ async function updateRiderProfile(req, res) {
 // GET /api/rider/dashboard
 async function getRiderDashboard(req, res) {
   const riderId = req.user.id;
-  const rider = await User.findById(riderId).select('name email phone profileImage isOnline rating vehicleDetails');
+  const rider = await User.findById(riderId).select('name email phone address profileImage isOnline rating vehicleDetails');
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -42,7 +42,7 @@ async function getRiderDashboard(req, res) {
   });
 
   const todayDeliveries = todayDeliveriesDocs.length;
-  const distanceTravelled = todayDeliveriesDocs.reduce((sum, d) => sum + (d.distanceKm || 3.5), 0);
+  const distanceTravelled = todayDeliveriesDocs.reduce((sum, d) => sum + (d.distanceKm || 0), 0);
 
   // Today's earnings
   const todayEarningsDocs = await Earning.find({
@@ -62,21 +62,25 @@ async function getRiderDashboard(req, res) {
 
   return sendSuccess(res, {
     rider: {
+      id: rider?._id || riderId,
+      _id: rider?._id || riderId,
       name: rider?.name || 'HomeBite Rider',
-      phone: rider?.phone || '+94 77 555 9876',
+      email: rider?.email || '',
+      phone: rider?.phone || '',
+      address: rider?.address || '',
       profileImage: rider?.profileImage || '',
       isOnline: rider?.isOnline ?? true,
-      rating: rider?.rating || 4.9,
-      vehicleDetails: rider?.vehicleDetails || {
-        type: 'Motorbike',
-        model: 'Honda Dio',
-        plateNumber: 'WP BZ-4892',
+      rating: rider?.rating || 5.0,
+      vehicleDetails: {
+        type: rider?.vehicleDetails?.type || 'Motorbike',
+        model: rider?.vehicleDetails?.model || '',
+        plateNumber: rider?.vehicleDetails?.plateNumber || '',
       },
     },
     statistics: {
       todayDeliveries,
       todayEarnings,
-      rating: rider?.rating || 4.9,
+      rating: rider?.rating || 5.0,
       distanceTravelled: Number(distanceTravelled.toFixed(1)),
     },
     currentDelivery,

@@ -16,6 +16,7 @@ const router = express.Router();
 router.use(authenticate, authorizeRoles('rider'));
 
 router.get('/profile', getRiderProfile);
+router.get('/me', getRiderProfile);
 router.put('/profile', updateRiderProfile);
 router.get('/dashboard', getRiderDashboard);
 router.get('/summary', getRiderDashboard);

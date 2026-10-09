@@ -68,3 +68,13 @@ test('rider registration rejects missing credentials', async () => {
 
   expect(response.statusCode).toBe(400);
 });
+
+test('resend-verification rejects missing email', async () => {
+  const response = await request(app)
+    .post('/api/auth/resend-verification')
+    .send({});
+
+  expect(response.statusCode).toBe(400);
+  expect(response.body.message).toBe('Email is required');
+});
+

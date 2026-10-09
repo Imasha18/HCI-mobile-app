@@ -21,7 +21,11 @@ function publicUser(user) {
     rating: user.rating || 4.8,
     isOnline: user.isOnline ?? true,
     kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
-    vehicleDetails: user.vehicleDetails || { type: 'Motorbike', model: 'Honda Dio', plateNumber: 'WP BZ-4892' },
+    vehicleDetails: {
+      type: user.vehicleDetails?.type || 'Motorbike',
+      model: user.vehicleDetails?.model || '',
+      plateNumber: user.vehicleDetails?.plateNumber || '',
+    },
     emailVerified: user.emailVerified,
     isBlocked: user.isBlocked ?? false,
     verificationStatus: user.verificationStatus || 'approved',
@@ -72,28 +76,32 @@ async function registerRider(req, res) {
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) return res.status(409).json({ success: false, message: 'Email is already registered' });
     const hashedPassword = await bcrypt.hash(password, 12);
+    const code = createVerificationCode();
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
       role: 'rider',
-      phone: phone?.trim() || '+94 77 123 4567',
-      address: address?.trim() || 'Colombo, Sri Lanka',
+      phone: phone?.trim() || '',
+      address: address?.trim() || '',
       vehicleDetails: {
         type: vehicleType?.trim() || 'Motorbike',
-        model: vehicleModel?.trim() || 'Honda Dio',
-        plateNumber: vehiclePlateNumber?.trim() || 'WP BZ-4892',
+        model: vehicleModel?.trim() || '',
+        plateNumber: vehiclePlateNumber?.trim() || '',
       },
       isVerified: true,
-      emailVerified: true,
+      emailVerified: false,
       verificationStatus: 'approved',
+      verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'),
+      verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000,
       verificationDocuments: [
         { title: 'Driving License (Front & Back)', documentUrl: 'https://homebite.lk/docs/license.pdf', status: 'approved' },
         { title: 'Vehicle Revenue License 2026', documentUrl: 'https://homebite.lk/docs/revenue.pdf', status: 'approved' },
       ],
     });
+    await sendVerificationCode(user.email, code);
     notifyAdminNewVerification(user).catch(() => {});
-    return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Rider registered successfully', 201);
+    return sendSuccess(res, { user: publicUser(user), emailVerificationRequired: true }, 'Verification code sent', 201);
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -145,8 +153,14 @@ async function login(req, res) {
   if (role && user.role !== role) {
     return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
   }
-  if (user.role === 'customer' && !user.emailVerified) {
-    return res.status(403).json({ success: false, message: 'Please verify your email before signing in' });
+  if ((user.role === 'customer' || user.role === 'rider') && !user.emailVerified) {
+    return res.status(403).json({
+      success: false,
+      message: 'Please verify your email before signing in',
+      emailVerificationRequired: true,
+      email: user.email,
+      role: user.role,
+    });
   }
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in');
 }
@@ -161,6 +175,49 @@ async function verifyEmail(req, res) {
   user.verificationExpiresAt = undefined;
   await user.save();
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Email verified');
+}
+
+async function resendVerification(req, res) {
+  try {
+    const email = req.body.email?.trim()?.toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email }).select('+verificationCodeHash +verificationExpiresAt');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified' });
+    }
+
+    // Cooldown check (60 seconds)
+    if (user.verificationExpiresAt) {
+      const totalDurationMs = environment.verificationUrlMinutes * 60 * 1000;
+      const timeSinceLastCodeMs = totalDurationMs - (user.verificationExpiresAt.getTime() - Date.now());
+      const cooldownMs = 60 * 1000;
+      if (timeSinceLastCodeMs >= 0 && timeSinceLastCodeMs < cooldownMs) {
+        const waitSeconds = Math.ceil((cooldownMs - timeSinceLastCodeMs) / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${waitSeconds} seconds before requesting a new code`,
+        });
+      }
+    }
+
+    const code = createVerificationCode();
+    user.verificationCodeHash = crypto.createHash('sha256').update(code).digest('hex');
+    user.verificationExpiresAt = Date.now() + environment.verificationUrlMinutes * 60 * 1000;
+    await user.save();
+
+    await sendVerificationCode(user.email, code);
+
+    return sendSuccess(res, { sent: true }, 'New verification code sent');
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 }
 
 async function googleLogin(req, res) {
@@ -229,4 +286,4 @@ async function updateMe(req, res) {
   return sendSuccess(res, publicUser(user), 'Profile updated successfully');
 }
 
-module.exports = { register, registerCook, registerRider, login, verifyEmail, googleLogin, requestPasswordReset, resetPassword, me, updateMe, publicUser };
+module.exports = { register, registerCook, registerRider, login, verifyEmail, resendVerification, googleLogin, requestPasswordReset, resetPassword, me, updateMe, publicUser };

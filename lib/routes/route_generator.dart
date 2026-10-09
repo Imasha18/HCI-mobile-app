@@ -134,7 +134,12 @@ class RouteGenerator {
       AppRoutes.cookNotifications => const CookNotificationsScreen(),
       AppRoutes.register => const RegisterScreen(),
       AppRoutes.verifyEmail => VerifyEmailScreen(
-        email: settings.arguments as String,
+        email: settings.arguments is Map
+            ? (settings.arguments as Map)['email']?.toString() ?? ''
+            : (settings.arguments?.toString() ?? ''),
+        role: settings.arguments is Map
+            ? (settings.arguments as Map)['role']?.toString() ?? 'customer'
+            : 'customer',
       ),
       AppRoutes.forgotPassword => const ForgotPasswordScreen(),
       AppRoutes.resetPassword => ResetPasswordScreen(
