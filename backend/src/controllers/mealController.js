@@ -1,4 +1,6 @@
 const Meal = require('../models/Meal');
+const Kitchen = require('../models/Kitchen');
+const User = require('../models/User');
 const mongoose = require('mongoose');
 const { sendSuccess } = require('../utils/apiResponse');
 const { uploadImage } = require('../services/imageService');
@@ -42,6 +44,7 @@ async function listMeals(req, res) {
     const total = await Meal.countDocuments(filter);
     const meals = await Meal.find(filter)
       .populate('cook', 'name kitchenName profileImage rating address phone')
+      .populate('kitchen', 'kitchenName address phone openingHours bio image')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -52,6 +55,7 @@ async function listMeals(req, res) {
     res,
     await Meal.find(filter)
       .populate('cook', 'name kitchenName profileImage rating address phone')
+      .populate('kitchen', 'kitchenName address phone openingHours bio image')
       .sort({ createdAt: -1 })
   );
 }
@@ -65,7 +69,8 @@ async function getMeal(req, res) {
     return res.status(404).json({ success: false, message: 'Meal not found' });
   }
   const meal = await Meal.findById(req.params.id)
-    .populate('cook', 'name kitchenName profileImage rating address phone');
+    .populate('cook', 'name kitchenName profileImage rating address phone')
+    .populate('kitchen', 'kitchenName address phone openingHours bio image');
   if (!meal) return res.status(404).json({ success: false, message: 'Meal not found' });
   return sendSuccess(res, meal);
 }
@@ -81,6 +86,9 @@ async function createMeal(req, res) {
     prepTimeMinutes,
     ingredients,
     dietaryInformation,
+    dietaryTags,
+    cuisine,
+    spiceLevel,
     available,
     availability,
   } = req.body;
@@ -91,15 +99,33 @@ async function createMeal(req, res) {
     if (uploaded) imageUrl = uploaded;
   }
 
+  // Ensure Kitchen exists for this cook
+  let kitchen = await Kitchen.findOne({ cookId: req.user.id });
+  if (!kitchen) {
+    const cookUser = await User.findById(req.user.id);
+    kitchen = await Kitchen.create({
+      cookId: req.user.id,
+      kitchenName: cookUser?.kitchenName || `${cookUser?.name || 'Home Cook'}'s Kitchen`,
+      address: cookUser?.address || '',
+      phone: cookUser?.phone || '',
+    });
+  }
+
+  const dietaryArray = parseArrayInput(dietaryInformation || dietaryTags);
+
   const meal = await Meal.create({
     cook: req.user.id,
+    kitchen: kitchen?._id,
     name: name?.trim() || 'Untitled Meal',
     description: description?.trim() || '',
     price: Number(price) || 0,
     category: category || 'Rice',
     imageUrl: imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80',
     ingredients: parseArrayInput(ingredients),
-    dietaryInformation: parseArrayInput(dietaryInformation),
+    dietaryInformation: dietaryArray,
+    dietaryTags: dietaryArray,
+    cuisine: cuisine?.trim() || 'Sri Lankan',
+    spiceLevel: ['mild', 'medium', 'spicy'].includes(spiceLevel) ? spiceLevel : 'medium',
     prepTimeMinutes: Number(cookingTime || prepTimeMinutes) || 25,
     available: available !== undefined ? Boolean(available) : (availability !== undefined ? Boolean(availability) : true),
     rating: 5.0,
@@ -130,19 +156,30 @@ async function updateMeal(req, res) {
   if (req.body.description !== undefined) meal.description = req.body.description.trim();
   if (req.body.price !== undefined) meal.price = Number(req.body.price);
   if (req.body.category !== undefined) meal.category = req.body.category;
+  if (req.body.cuisine !== undefined) meal.cuisine = req.body.cuisine.trim();
+  if (req.body.spiceLevel !== undefined && ['mild', 'medium', 'spicy'].includes(req.body.spiceLevel)) {
+    meal.spiceLevel = req.body.spiceLevel;
+  }
   if (req.body.cookingTime !== undefined || req.body.prepTimeMinutes !== undefined) {
     meal.prepTimeMinutes = Number(req.body.cookingTime || req.body.prepTimeMinutes);
   }
   if (req.body.ingredients !== undefined) {
     meal.ingredients = parseArrayInput(req.body.ingredients);
   }
-  if (req.body.dietaryInformation !== undefined) {
-    meal.dietaryInformation = parseArrayInput(req.body.dietaryInformation);
+  if (req.body.dietaryInformation !== undefined || req.body.dietaryTags !== undefined) {
+    const dietaryArr = parseArrayInput(req.body.dietaryInformation || req.body.dietaryTags);
+    meal.dietaryInformation = dietaryArr;
+    meal.dietaryTags = dietaryArr;
   }
   if (req.body.available !== undefined) {
     meal.available = Boolean(req.body.available);
   } else if (req.body.availability !== undefined) {
     meal.available = Boolean(req.body.availability);
+  }
+
+  if (!meal.kitchen) {
+    const kitchen = await Kitchen.findOne({ cookId: req.user.id });
+    if (kitchen) meal.kitchen = kitchen._id;
   }
 
   await meal.save();

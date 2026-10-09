@@ -5,6 +5,7 @@ import '../../../config/app_routes.dart';
 import '../../../config/constants.dart';
 import '../../../core/widgets/app_cached_image.dart';
 import '../../../core/widgets/skeleton_loaders.dart';
+import '../providers/cook_provider.dart';
 import '../providers/meal_management_provider.dart';
 import '../theme/cook_theme.dart';
 
@@ -16,7 +17,7 @@ class ManageMenuScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
-  final List<String> _categories = ['All', 'Rice', 'Curry', 'Kottu', 'Healthy'];
+  final List<String> _categories = ['All', 'Rice', 'Curry', 'Kottu', 'Healthy', 'Short Eats', 'Dessert'];
 
   @override
   void initState() {
@@ -44,6 +45,9 @@ class _ManageMenuScreenState extends ConsumerState<ManageMenuScreen> {
               final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(ctx);
               final success = await ref.read(mealManagementProvider.notifier).deleteMeal(mealId);
+              if (success) {
+                ref.read(cookProvider.notifier).fetchDashboard();
+              }
               messenger.showSnackBar(
                 SnackBar(
                   content: Text(success ? 'Meal deleted successfully' : 'Failed to delete meal'),

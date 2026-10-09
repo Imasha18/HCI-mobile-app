@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const mealSchema = new mongoose.Schema({
   cook: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  kitchen: { type: mongoose.Schema.Types.ObjectId, ref: 'Kitchen' },
   name: { type: String, required: true, trim: true },
   description: String,
   price: { type: Number, required: true, min: 0 },
@@ -28,6 +29,12 @@ mealSchema.virtual('cookId')
     return (this.cook && this.cook._id) ? this.cook._id : this.cook;
   })
   .set(function(v) { this.cook = v; });
+
+mealSchema.virtual('kitchenId')
+  .get(function() {
+    return (this.kitchen && this.kitchen._id) ? this.kitchen._id : this.kitchen;
+  })
+  .set(function(v) { this.kitchen = v; });
 
 mealSchema.virtual('image')
   .get(function() { return this.imageUrl; })

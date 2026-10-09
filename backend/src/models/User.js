@@ -60,6 +60,31 @@ const userSchema = new mongoose.Schema({
     },
     onboardingCompleted: { type: Boolean, default: false },
   },
+  bankDetails: {
+    accountHolderName: { type: String, default: '', trim: true },
+    bankName: { type: String, default: '', trim: true },
+    branchName: { type: String, default: '', trim: true },
+    accountNumber: { type: String, default: '', trim: true },
+    isVerified: { type: Boolean, default: false },
+  },
+  cookDocuments: {
+    type: mongoose.Schema.Types.Mixed,
+    default: () => ({
+      nic: { type: 'nic', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null },
+      phiCertificate: { type: 'phiCertificate', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null },
+      foodHandlingCertificate: { type: 'foodHandlingCertificate', fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null, approvedAt: null },
+    }),
+  },
+  cookSettings: {
+    operatingHours: { type: String, default: '11:00 AM - 10:00 PM' },
+    autoAcceptOrders: { type: Boolean, default: true },
+    deliveryRadiusKm: { type: Number, default: 7.0 },
+    notifications: {
+      orderAlerts: { type: Boolean, default: true },
+      emailAlerts: { type: Boolean, default: true },
+      smsAlerts: { type: Boolean, default: false },
+    },
+  },
 }, { timestamps: true });
 
 userSchema.index({ role: 1 });

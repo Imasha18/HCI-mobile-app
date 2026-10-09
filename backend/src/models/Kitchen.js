@@ -23,6 +23,32 @@ const kitchenSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    bio: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    openingHours: {
+      type: String,
+      trim: true,
+      default: '11:00 AM - 10:00 PM',
+    },
+    image: {
+      type: String,
+      default: '',
+    },
+    bannerImage: {
+      type: String,
+      default: '',
+    },
+    cuisineTypes: [{
+      type: String,
+      trim: true,
+    }],
+    isOnline: {
+      type: Boolean,
+      default: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

@@ -72,6 +72,8 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
     required List<String> ingredients,
     required List<String> dietaryInfo,
     required bool available,
+    String cuisine = 'Sri Lankan',
+    String spiceLevel = 'medium',
     File? imageFile,
     String? imageUrl,
   }) async {
@@ -84,9 +86,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients.join(', '),
           'dietaryInformation': dietaryInfo.join(', '),
+          'dietaryTags': dietaryInfo.join(', '),
           'available': available,
           'image': await MultipartFile.fromFile(
             imageFile.path,
@@ -99,9 +105,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients,
           'dietaryInformation': dietaryInfo,
+          'dietaryTags': dietaryInfo,
           'available': available,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
         };
@@ -135,6 +145,8 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
     required List<String> ingredients,
     required List<String> dietaryInfo,
     required bool available,
+    String cuisine = 'Sri Lankan',
+    String spiceLevel = 'medium',
     File? imageFile,
     String? imageUrl,
   }) async {
@@ -147,9 +159,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients.join(', '),
           'dietaryInformation': dietaryInfo.join(', '),
+          'dietaryTags': dietaryInfo.join(', '),
           'available': available,
           'image': await MultipartFile.fromFile(
             imageFile.path,
@@ -162,9 +178,13 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
           'description': description,
           'price': price,
           'category': category,
+          'cuisine': cuisine,
+          'spiceLevel': spiceLevel,
           'cookingTime': cookingTime,
+          'prepTimeMinutes': cookingTime,
           'ingredients': ingredients,
           'dietaryInformation': dietaryInfo,
+          'dietaryTags': dietaryInfo,
           'available': available,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
         };
@@ -179,7 +199,7 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
         error: ApiClient.messageFrom(e),
       );
       return false;
-    } catch (_) {
+    } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to update meal',
