@@ -12,19 +12,11 @@ class RiderEarningsState {
   final String? error;
 
   const RiderEarningsState({
-    this.totalEarnings = 14850.0,
-    this.todayEarnings = 2450.0,
-    this.weeklyEarnings = 9600.0,
-    this.monthlyEarnings = 38400.0,
-    this.dailyBreakdown = const [
-      {'day': 'Mon', 'amount': 1800.0, 'deliveries': 4},
-      {'day': 'Tue', 'amount': 2250.0, 'deliveries': 5},
-      {'day': 'Wed', 'amount': 1500.0, 'deliveries': 3},
-      {'day': 'Thu', 'amount': 2800.0, 'deliveries': 6},
-      {'day': 'Fri', 'amount': 3200.0, 'deliveries': 7},
-      {'day': 'Sat', 'amount': 2450.0, 'deliveries': 5},
-      {'day': 'Sun', 'amount': 1900.0, 'deliveries': 4},
-    ],
+    this.totalEarnings = 0.0,
+    this.todayEarnings = 0.0,
+    this.weeklyEarnings = 0.0,
+    this.monthlyEarnings = 0.0,
+    this.dailyBreakdown = const [],
     this.history = const [],
     this.isLoading = false,
     this.error,
@@ -80,11 +72,11 @@ class EarningsNotifier extends StateNotifier<RiderEarningsState> {
 
       state = state.copyWith(
         isLoading: false,
-        totalEarnings: (data['totalEarnings'] as num?)?.toDouble() ?? state.totalEarnings,
-        todayEarnings: (data['todayEarnings'] as num?)?.toDouble() ?? state.todayEarnings,
-        weeklyEarnings: (data['weeklyEarnings'] as num?)?.toDouble() ?? state.weeklyEarnings,
-        monthlyEarnings: (data['monthlyEarnings'] as num?)?.toDouble() ?? state.monthlyEarnings,
-        dailyBreakdown: breakdown.isNotEmpty ? breakdown : state.dailyBreakdown,
+        totalEarnings: (data['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+        todayEarnings: (data['todayEarnings'] as num?)?.toDouble() ?? 0.0,
+        weeklyEarnings: (data['weeklyEarnings'] as num?)?.toDouble() ?? 0.0,
+        monthlyEarnings: (data['monthlyEarnings'] as num?)?.toDouble() ?? 0.0,
+        dailyBreakdown: breakdown,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -100,6 +92,10 @@ class EarningsNotifier extends StateNotifier<RiderEarningsState> {
     } catch (_) {
       // Keep existing history
     }
+  }
+
+  void reset() {
+    state = const RiderEarningsState();
   }
 }
 

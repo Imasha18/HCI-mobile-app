@@ -14,8 +14,8 @@ class RiderLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
-  final _emailController = TextEditingController(text: 'rider@homebite.com');
-  final _passwordController = TextEditingController(text: 'rider123');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
 
@@ -34,8 +34,35 @@ class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
           _passwordController.text,
         );
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
       Navigator.pushReplacementNamed(context, AppRoutes.riderDashboard);
+    } else {
+      final error = ref.read(riderProvider).error ?? 'Invalid email or password';
+      if (error.toLowerCase().contains('verify your email')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'Verify Now',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.verifyEmail,
+                  arguments: {
+                    'email': _emailController.text.trim().toLowerCase(),
+                    'role': 'rider',
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      }
     }
   }
 

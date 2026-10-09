@@ -14,8 +14,8 @@ const userSchema = new mongoose.Schema({
   kitchenName: String,
   vehicleDetails: {
     type: { type: String, default: 'Motorbike' },
-    model: { type: String, default: 'Honda Dio' },
-    plateNumber: { type: String, default: 'WP BZ-4892' },
+    model: { type: String, default: '' },
+    plateNumber: { type: String, default: '' },
   },
   emailVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },

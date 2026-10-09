@@ -26,8 +26,8 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
 
   void _showEditVehicleDialog(BuildContext context, Map<String, dynamic>? currentVehicle) {
     final typeController = TextEditingController(text: currentVehicle?['type'] ?? 'Motorbike');
-    final modelController = TextEditingController(text: currentVehicle?['model'] ?? 'Honda Dio');
-    final plateController = TextEditingController(text: currentVehicle?['plateNumber'] ?? 'WP BZ-4892');
+    final modelController = TextEditingController(text: currentVehicle?['model'] ?? '');
+    final plateController = TextEditingController(text: currentVehicle?['plateNumber'] ?? '');
 
     showDialog(
       context: context,
@@ -367,9 +367,9 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                 const SizedBox(height: 12),
                 _buildVehicleRow(Icons.two_wheeler_rounded, 'Type', vehicle?['type'] ?? 'Motorbike'),
                 const Divider(height: 18),
-                _buildVehicleRow(Icons.motorcycle_rounded, 'Model', vehicle?['model'] ?? 'Honda Dio'),
+                _buildVehicleRow(Icons.motorcycle_rounded, 'Model', (vehicle?['model'] != null && vehicle!['model'].toString().isNotEmpty) ? vehicle['model'] : 'Not set'),
                 const Divider(height: 18),
-                _buildVehicleRow(Icons.credit_card_rounded, 'Plate Number', vehicle?['plateNumber'] ?? 'WP BZ-4892'),
+                _buildVehicleRow(Icons.credit_card_rounded, 'Plate Number', (vehicle?['plateNumber'] != null && vehicle!['plateNumber'].toString().isNotEmpty) ? vehicle['plateNumber'] : 'Not set'),
               ],
             ),
           ),
