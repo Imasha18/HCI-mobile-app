@@ -226,20 +226,75 @@ class UserManagementNotifier extends StateNotifier<UserManagementState> {
     }
   }
 
-  Future<bool> verifyRider(String riderId, String status) async {
+  Future<Map<String, dynamic>?> fetchRiderDetails(String id) async {
+    try {
+      final res = await _client.dio.get('/admin/riders/$id');
+      if (res.data['success'] == true && res.data['data'] is Map) {
+        return Map<String, dynamic>.from(res.data['data'] as Map);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>> verifyRiderDocument(
+    String riderId,
+    String documentKey,
+    String status, {
+    String? reason,
+  }) async {
+    try {
+      final res = await _client.dio.patch(
+        '/admin/riders/$riderId/documents/$documentKey/status',
+        data: {
+          'status': status,
+          if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+        },
+      );
+      if (res.data['success'] == true) {
+        _invalidateUserCaches();
+        await loadRiders(forceRefresh: true);
+        await loadAllUsers(forceRefresh: true);
+        return {
+          'success': true,
+          'message': res.data['message']?.toString() ?? 'Document status updated',
+          'data': res.data['data'] is Map ? Map<String, dynamic>.from(res.data['data'] as Map) : null,
+        };
+      }
+      return {'success': false, 'message': res.data['message']?.toString() ?? 'Failed to update document status'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': ApiClient.messageFrom(e)};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyRider(
+    String riderId,
+    String status, {
+    String? reason,
+    String? documentKey,
+  }) async {
     try {
       final res = await _client.dio.patch('/admin/riders/$riderId/verify', data: {
         'status': status,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+        'documentKey': ?documentKey,
       });
       if (res.data['success'] == true) {
         _invalidateUserCaches();
         await loadRiders(forceRefresh: true);
         await loadAllUsers(forceRefresh: true);
-        return true;
+        return {
+          'success': true,
+          'message': res.data['message']?.toString() ?? 'Rider verification updated',
+          'data': res.data['data'] is Map ? Map<String, dynamic>.from(res.data['data'] as Map) : null,
+        };
       }
-      return false;
-    } catch (_) {
-      return false;
+      return {'success': false, 'message': res.data['message']?.toString() ?? 'Verification failed'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': ApiClient.messageFrom(e)};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
     }
   }
 }

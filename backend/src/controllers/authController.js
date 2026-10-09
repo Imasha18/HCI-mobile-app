@@ -16,8 +16,7 @@ function publicUser(user) {
     role: user.role,
     phone: user.phone || '',
     address: user.address || '',
-    profileImage: user.profileImage || '',
-    isVerified: user.isVerified ?? true,
+    isVerified: user.isVerified ?? (user.role === 'rider' ? false : true),
     rating: user.rating || 4.8,
     isOnline: user.isOnline ?? true,
     kitchenName: user.kitchenName || (user.name ? `${user.name}'s Kitchen` : 'Home Kitchen'),
@@ -28,7 +27,8 @@ function publicUser(user) {
     },
     emailVerified: user.emailVerified,
     isBlocked: user.isBlocked ?? false,
-    verificationStatus: user.verificationStatus || 'approved',
+    verificationStatus: user.verificationStatus || (user.role === 'rider' ? 'not_submitted' : 'approved'),
+    verificationDocuments: user.verificationDocuments || {},
   };
 }
 
@@ -89,15 +89,17 @@ async function registerRider(req, res) {
         model: vehicleModel?.trim() || '',
         plateNumber: vehiclePlateNumber?.trim() || '',
       },
-      isVerified: true,
+      isVerified: false,
       emailVerified: false,
-      verificationStatus: 'approved',
+      verificationStatus: 'not_submitted',
       verificationCodeHash: crypto.createHash('sha256').update(code).digest('hex'),
       verificationExpiresAt: Date.now() + environment.verificationUrlMinutes * 60 * 1000,
-      verificationDocuments: [
-        { title: 'Driving License (Front & Back)', documentUrl: 'https://homebite.lk/docs/license.pdf', status: 'approved' },
-        { title: 'Vehicle Revenue License 2026', documentUrl: 'https://homebite.lk/docs/revenue.pdf', status: 'approved' },
-      ],
+      verificationDocuments: {
+        nic: { fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null },
+        drivingLicense: { fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null },
+        vehicleDocument: { fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null },
+        insurance: { fileUrl: '', fileName: '', status: 'not_submitted', rejectionReason: null, uploadedAt: null },
+      },
     });
     await sendVerificationCode(user.email, code);
     notifyAdminNewVerification(user).catch(() => {});
