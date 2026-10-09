@@ -229,7 +229,17 @@ async function login(req, res) {
     return res.status(403).json({ success: false, message: 'Your account has been suspended by administration' });
   }
   if (role && user.role !== role) {
-    return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
+    if (role === 'cook' && user.role === 'customer') {
+      user.role = 'cook';
+      if (!user.kitchenName) {
+        user.kitchenName = `${user.name || 'Home Cook'}'s Kitchen`;
+      }
+      await user.save();
+    } else if (user.role === 'admin') {
+      // Admin can log in to any portal
+    } else {
+      return res.status(403).json({ success: false, message: `${role.charAt(0).toUpperCase() + role.slice(1)} access only` });
+    }
   }
   if ((user.role === 'customer' || user.role === 'rider') && !user.emailVerified) {
     return res.status(403).json({
@@ -395,19 +405,29 @@ async function googleLogin(req, res) {
   const ticket = await client.verifyIdToken({ idToken: req.body.idToken, audience: environment.googleClientId });
   const payload = ticket.getPayload();
   if (!payload?.email || !payload.email_verified) return res.status(401).json({ success: false, message: 'A verified Google email is required' });
+  const requestedRole = req.body.role || 'customer';
   let user = await User.findOne({ email: payload.email.toLowerCase() });
   if (!user) {
     user = await User.create({
       name: payload.name || payload.email.split('@')[0],
       email: payload.email.toLowerCase(),
       password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
-      role: 'customer',
+      role: requestedRole,
+      kitchenName: req.body.kitchenName || `${payload.name || 'Chef'}'s Kitchen`,
+      phone: req.body.phone || '',
+      address: req.body.address || '',
       emailVerified: true,
       googleId: payload.sub,
       profileImage: payload.picture,
     });
+  } else if (requestedRole === 'cook' && user.role === 'customer') {
+    user.role = 'cook';
+    if (req.body.kitchenName) user.kitchenName = req.body.kitchenName;
+    await user.save();
   }
-  if (user.role !== 'customer') return res.status(403).json({ success: false, message: 'Customer access only' });
+  if (requestedRole && user.role !== requestedRole && user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: `${requestedRole.charAt(0).toUpperCase() + requestedRole.slice(1)} access only` });
+  }
   return sendSuccess(res, { user: publicUser(user), token: generateToken(user) }, 'Signed in with Google');
 }
 
