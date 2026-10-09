@@ -57,12 +57,67 @@ class RiderNotifier extends StateNotifier<RiderState> {
     } catch (_) {}
   }
 
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(clearError: true);
+    }
+  }
+
   Future<void> checkAuthSession() async {
     final token = await _storage.read(key: 'auth_token');
     if (token != null && token.isNotEmpty) {
       _client.updateAuthToken(token);
       await fetchDashboard();
       await fetchProfile();
+    }
+  }
+
+  Future<bool> googleLogin(String idToken) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.post(
+        '/auth/google',
+        data: {
+          'idToken': idToken,
+          'role': 'rider',
+        },
+      );
+
+      final data = response.data['data'] as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = data['user'] as Map<String, dynamic>;
+
+      _client.clearCache();
+      _client.updateAuthToken(token);
+
+      await _storage.write(key: 'auth_token', value: token);
+      await _storage.write(key: 'user_id', value: (user['id'] ?? user['_id'] ?? '').toString());
+
+      _resetOtherProviders();
+
+      state = state.copyWith(
+        isLoading: false,
+        rider: user,
+        dashboardData: null,
+        isOnline: user['isOnline'] as bool? ?? true,
+      );
+
+      await fetchDashboard(forceRefresh: true);
+      await fetchProfile(forceRefresh: true);
+      return true;
+    } on DioException catch (e) {
+      final msg = ApiClient.messageFrom(e);
+      state = state.copyWith(
+        isLoading: false,
+        error: msg,
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Google authentication failed: $e',
+      );
+      return false;
     }
   }
 

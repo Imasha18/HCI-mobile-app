@@ -23,16 +23,6 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
   bool _isGoogleLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ref.read(cookProvider.notifier).clearError();
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -42,10 +32,9 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(cookProvider.notifier).login(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
+    final success = await ref
+        .read(cookProvider.notifier)
+        .login(_emailController.text.trim(), _passwordController.text);
 
     if (!mounted) return;
 
@@ -81,7 +70,9 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
     try {
-      final googleSignIn = GoogleSignIn(serverClientId: ApiConfig.googleClientId);
+      final googleSignIn = GoogleSignIn(
+        serverClientId: ApiConfig.googleClientId,
+      );
       final account = await googleSignIn.signIn();
       final idToken = (await account?.authentication)?.idToken;
       if (idToken == null) {
@@ -89,11 +80,14 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
         return;
       }
 
-      final result = await ref.read(cookProvider.notifier).googleAuth(idToken: idToken);
+      final result = await ref
+          .read(cookProvider.notifier)
+          .googleAuth(idToken: idToken);
       if (!mounted) return;
 
       if (result == null) {
-        final err = ref.read(cookProvider).error ?? 'Google authentication failed.';
+        final err =
+            ref.read(cookProvider).error ?? 'Google authentication failed.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(err),
@@ -110,7 +104,11 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
         final data = result['data'] as Map<String, dynamic>? ?? {};
         _showProfileCompletionSheet(idToken, data);
       } else {
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.cookDashboard, (_) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.cookDashboard,
+          (_) => false,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -128,7 +126,9 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
 
   void _showProfileCompletionSheet(String idToken, Map<String, dynamic> data) {
     final sheetFormKey = GlobalKey<FormState>();
-    final sheetNameCtrl = TextEditingController(text: data['name']?.toString() ?? '');
+    final sheetNameCtrl = TextEditingController(
+      text: data['name']?.toString() ?? '',
+    );
     final sheetKitchenCtrl = TextEditingController(
       text: data['name'] != null ? '${data['name']}\'s Kitchen' : '',
     );
@@ -186,16 +186,26 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                   _buildFieldLabel('Full Name / Chef Name'),
                   TextFormField(
                     controller: sheetNameCtrl,
-                    decoration: _inputDecoration('e.g. Sunethra Silva', Icons.person_outline),
-                    validator: (val) => val == null || val.trim().length < 2 ? 'Enter your full name.' : null,
+                    decoration: _inputDecoration(
+                      'e.g. Sunethra Silva',
+                      Icons.person_outline,
+                    ),
+                    validator: (val) => val == null || val.trim().length < 2
+                        ? 'Enter your full name.'
+                        : null,
                   ),
                   const SizedBox(height: 14),
 
                   _buildFieldLabel('Kitchen Name'),
                   TextFormField(
                     controller: sheetKitchenCtrl,
-                    decoration: _inputDecoration('e.g. Amma\'s Spice Kitchen', Icons.storefront_outlined),
-                    validator: (val) => val == null || val.trim().length < 2 ? 'Enter your kitchen name.' : null,
+                    decoration: _inputDecoration(
+                      'e.g. Amma\'s Spice Kitchen',
+                      Icons.storefront_outlined,
+                    ),
+                    validator: (val) => val == null || val.trim().length < 2
+                        ? 'Enter your kitchen name.'
+                        : null,
                   ),
                   const SizedBox(height: 14),
 
@@ -203,12 +213,21 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                   TextFormField(
                     controller: sheetPhoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration: _inputDecoration('0771234567 or +94771234567', Icons.phone_outlined),
+                    decoration: _inputDecoration(
+                      '0771234567 or +94771234567',
+                      Icons.phone_outlined,
+                    ),
                     validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Enter a valid Sri Lankan phone number.';
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Enter a valid Sri Lankan phone number.';
+                      }
                       final clean = val.replaceAll(RegExp(r'[\s-]'), '');
-                      final phoneRegex = RegExp(r'^(?:\+94|0094|94)?(?:0)?(?:7[01245678]|11|2[1-8]|3[1-8]|4[1-7]|5[1-7]|6[3-7]|8[1-4]|9[12])[0-9]{7}$');
-                      if (!phoneRegex.hasMatch(clean)) return 'Enter a valid Sri Lankan phone number.';
+                      final phoneRegex = RegExp(
+                        r'^(?:\+94|0094|94)?(?:0)?(?:7[01245678]|11|2[1-8]|3[1-8]|4[1-7]|5[1-7]|6[3-7]|8[1-4]|9[12])[0-9]{7}$',
+                      );
+                      if (!phoneRegex.hasMatch(clean)) {
+                        return 'Enter a valid Sri Lankan phone number.';
+                      }
                       return null;
                     },
                   ),
@@ -217,8 +236,13 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                   _buildFieldLabel('Kitchen Address'),
                   TextFormField(
                     controller: sheetAddressCtrl,
-                    decoration: _inputDecoration('e.g. 45/2 Galle Road, Colombo 03', Icons.location_on_outlined),
-                    validator: (val) => val == null || val.trim().length < 5 ? 'Enter your kitchen address.' : null,
+                    decoration: _inputDecoration(
+                      'e.g. 45/2 Galle Road, Colombo 03',
+                      Icons.location_on_outlined,
+                    ),
+                    validator: (val) => val == null || val.trim().length < 5
+                        ? 'Enter your kitchen address.'
+                        : null,
                   ),
                   const SizedBox(height: 24),
 
@@ -231,7 +255,9 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         Navigator.pop(ctx);
                         setState(() => _isGoogleLoading = true);
 
-                        final completed = await ref.read(cookProvider.notifier).googleAuth(
+                        final completed = await ref
+                            .read(cookProvider.notifier)
+                            .googleAuth(
                               idToken: idToken,
                               name: sheetNameCtrl.text.trim(),
                               kitchenName: sheetKitchenCtrl.text.trim(),
@@ -242,27 +268,38 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         if (!mounted) return;
                         setState(() => _isGoogleLoading = false);
 
-                        if (completed != null && completed['requiresProfileCompletion'] != true) {
+                        if (completed != null &&
+                            completed['requiresProfileCompletion'] != true) {
                           Navigator.pushNamedAndRemoveUntil(
                             context,
                             AppRoutes.cookDashboard,
                             (_) => false,
                           );
                         } else {
-                          final err = ref.read(cookProvider).error ?? 'Unable to complete profile.';
+                          final err =
+                              ref.read(cookProvider).error ??
+                              'Unable to complete profile.';
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(err), backgroundColor: CookTheme.statusRed),
+                            SnackBar(
+                              content: Text(err),
+                              backgroundColor: CookTheme.statusRed,
+                            ),
                           );
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: CookTheme.primaryOrange,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: const Text(
                         'Finish & Open Kitchen',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -311,11 +348,12 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                             child: Image.asset(
                               AppAssets.logo,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                Icons.restaurant_menu_rounded,
-                                size: 48,
-                                color: CookTheme.primaryOrange,
-                              ),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.restaurant_menu_rounded,
+                                    size: 48,
+                                    color: CookTheme.primaryOrange,
+                                  ),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -374,11 +412,17 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         decoration: BoxDecoration(
                           color: CookTheme.statusRedBg,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: CookTheme.statusRed.withValues(alpha: 0.2)),
+                          border: Border.all(
+                            color: CookTheme.statusRed.withValues(alpha: 0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline, color: CookTheme.statusRed, size: 20),
+                            const Icon(
+                              Icons.error_outline,
+                              color: CookTheme.statusRed,
+                              size: 20,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -401,10 +445,17 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
-                      decoration: _inputDecoration('e.g. chef@homebite.com', Icons.email_outlined),
+                      decoration: _inputDecoration(
+                        'e.g. chef@homebite.com',
+                        Icons.email_outlined,
+                      ),
                       validator: (val) {
-                        if (val == null || val.trim().isEmpty) return 'Enter your cook email';
-                        if (!val.contains('@')) return 'Enter a valid email address';
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Enter your cook email';
+                        }
+                        if (!val.contains('@')) {
+                          return 'Enter a valid email address';
+                        }
                         return null;
                       },
                     ),
@@ -419,14 +470,24 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
                         hintText: 'Enter your password',
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                        prefixIcon: const Icon(Icons.lock_outline, color: CookTheme.primaryOrange),
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          color: CookTheme.primaryOrange,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: CookTheme.textMuted,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                         filled: true,
                         fillColor: CookTheme.surfaceLight,
@@ -440,11 +501,15 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: CookTheme.primaryOrange, width: 2),
+                          borderSide: const BorderSide(
+                            color: CookTheme.primaryOrange,
+                            width: 2,
+                          ),
                         ),
                       ),
-                      validator: (val) =>
-                          val == null || val.isEmpty ? 'Enter your password' : null,
+                      validator: (val) => val == null || val.isEmpty
+                          ? 'Enter your password'
+                          : null,
                       onFieldSubmitted: (_) => _handleLogin(),
                     ),
 
@@ -457,7 +522,9 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Password reset instructions sent to cook email.'),
+                              content: Text(
+                                'Password reset instructions sent to cook email.',
+                              ),
                             ),
                           );
                         },
@@ -538,16 +605,25 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                       child: OutlinedButton.icon(
                         onPressed: isLoading ? null : _handleGoogleSignIn,
                         style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                           side: BorderSide(color: Colors.grey.shade300),
                         ),
                         icon: _isGoogleLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: CookTheme.primaryDark),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: CookTheme.primaryDark,
+                                ),
                               )
-                            : const Icon(Icons.g_mobiledata_rounded, size: 30, color: CookTheme.primaryDark),
+                            : const Icon(
+                                Icons.g_mobiledata_rounded,
+                                size: 30,
+                                color: CookTheme.primaryDark,
+                              ),
                         label: const Text(
                           'Continue with Google',
                           style: TextStyle(
@@ -568,11 +644,17 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                         children: [
                           const Text(
                             'Want to become a Home Cook? ',
-                            style: TextStyle(color: CookTheme.textMuted, fontSize: 14),
+                            style: TextStyle(
+                              color: CookTheme.textMuted,
+                              fontSize: 14,
+                            ),
                           ),
                           GestureDetector(
                             onTap: () {
-                              Navigator.pushNamed(context, AppRoutes.cookRegister);
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.cookRegister,
+                              );
                             },
                             child: const Text(
                               'Create account',
@@ -592,22 +674,42 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
                     // Return to role selection / customer login link
                     Center(
                       child: TextButton.icon(
-                        onPressed: () => Navigator.pushNamed(context, AppRoutes.roleSelection),
-                        icon: const Icon(Icons.people_outline_rounded, size: 16, color: CookTheme.textMuted),
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.roleSelection,
+                        ),
+                        icon: const Icon(
+                          Icons.people_outline_rounded,
+                          size: 16,
+                          color: CookTheme.textMuted,
+                        ),
                         label: const Text(
                           'How will you join us? Select Role',
-                          style: TextStyle(color: CookTheme.textMuted, fontSize: 13),
+                          style: TextStyle(
+                            color: CookTheme.textMuted,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Center(
                       child: TextButton.icon(
-                        onPressed: () => Navigator.pushReplacementNamed(context, AppRoutes.login),
-                        icon: const Icon(Icons.arrow_back_rounded, size: 16, color: CookTheme.textMuted),
+                        onPressed: () => Navigator.pushReplacementNamed(
+                          context,
+                          AppRoutes.login,
+                        ),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          size: 16,
+                          color: CookTheme.textMuted,
+                        ),
                         label: const Text(
                           'Switch to Customer App',
-                          style: TextStyle(color: CookTheme.textMuted, fontSize: 13),
+                          style: TextStyle(
+                            color: CookTheme.textMuted,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
@@ -626,7 +728,11 @@ class _CookLoginScreenState extends ConsumerState<CookLoginScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         label,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: CookTheme.textDark),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: CookTheme.textDark,
+        ),
       ),
     );
   }

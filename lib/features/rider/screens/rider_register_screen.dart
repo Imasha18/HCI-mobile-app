@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../config/api_config.dart';
 import '../../../config/app_routes.dart';
 import '../../../config/constants.dart';
 import '../providers/rider_provider.dart';
@@ -25,6 +27,7 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
 
   String _vehicleType = 'Motorbike';
   bool _obscurePassword = true;
+  bool _isGoogleLoading = false;
 
   final List<String> _vehicleOptions = [
     'Motorbike',
@@ -85,6 +88,46 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
           backgroundColor: RiderTheme.statusRed,
         ),
       );
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final googleSignIn = GoogleSignIn(serverClientId: ApiConfig.googleClientId);
+      final account = await googleSignIn.signIn();
+      final idToken = (await account?.authentication)?.idToken;
+      if (idToken == null) {
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      final success = await ref.read(riderProvider.notifier).googleLogin(idToken);
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.riderDashboard, (_) => false);
+      } else {
+        final err = ref.read(riderProvider).error ?? 'Google authentication failed.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: RiderTheme.statusRed,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() => _isGoogleLoading = false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google sign-in error: $e'),
+          backgroundColor: RiderTheme.statusRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -283,6 +326,57 @@ class _RiderRegisterScreenState extends ConsumerState<RiderRegisterScreen> {
                             'Create Rider Account',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // Divider OR
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: RiderTheme.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+
+                // Continue with Google button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: (state.isLoading || _isGoogleLoading) ? null : _handleGoogleSignIn,
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    icon: _isGoogleLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: RiderTheme.primaryDark),
+                          )
+                        : const Icon(Icons.g_mobiledata_rounded, size: 30, color: RiderTheme.primaryDark),
+                    label: const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: RiderTheme.textDark,
+                      ),
+                    ),
                   ),
                 ),
 

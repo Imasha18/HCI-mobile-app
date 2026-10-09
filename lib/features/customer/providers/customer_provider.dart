@@ -303,7 +303,10 @@ class CustomerNotifier extends Notifier<CustomerState> {
     try {
       final response = await ApiClient().dio.post(
         '/auth/google',
-        data: {'idToken': idToken},
+        data: {
+          'idToken': idToken,
+          'role': 'customer',
+        },
       );
       final payload = response.data['data'] as Map<String, dynamic>;
       final token = payload['token'] as String;
@@ -312,7 +315,7 @@ class CustomerNotifier extends Notifier<CustomerState> {
         value: token,
       );
       ApiClient().updateAuthToken(token);
-      state = CustomerState(user: payload['user'] as Map<String, dynamic>);
+      state = CustomerState(user: _normalizeUser(payload['user'] as Map<String, dynamic>));
       return true;
     } on DioException catch (error) {
       state = CustomerState(error: ApiClient.messageFrom(error));

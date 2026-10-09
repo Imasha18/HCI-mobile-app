@@ -235,6 +235,12 @@ async function login(req, res) {
         user.kitchenName = `${user.name || 'Home Cook'}'s Kitchen`;
       }
       await user.save();
+    } else if (role === 'rider' && user.role === 'customer') {
+      user.role = 'rider';
+      if (!user.vehicleDetails || !user.vehicleDetails.plateNumber) {
+        user.vehicleDetails = { type: 'Motorbike', model: 'Standard', plateNumber: 'WP BDF-0000' };
+      }
+      await user.save();
     } else if (role === 'customer' && (user.role === 'cook' || user.role === 'rider')) {
       // Cooks and riders can access customer portal
     } else if (user.role === 'admin') {
@@ -415,7 +421,7 @@ async function googleLogin(req, res) {
   const requestedRole = req.body.role || 'customer';
   let user = await User.findOne({ email: payload.email.toLowerCase() });
   if (!user) {
-    const kitchenName = req.body.kitchenName || (requestedRole === 'cook' ? `${payload.name || 'Chef'}'s Kitchen` : undefined);
+    const kitchenName = req.body.kitchenName || (requestedRole === 'cook' ? `${payload.name || 'Chef'}'s Kitchen` : '');
     user = await User.create({
       name: req.body.name || payload.name || payload.email.split('@')[0],
       email: payload.email.toLowerCase(),
@@ -424,6 +430,11 @@ async function googleLogin(req, res) {
       kitchenName: kitchenName,
       phone: req.body.phone ? normalizePhone(req.body.phone) : '',
       address: req.body.address ? req.body.address.trim() : '',
+      vehicleDetails: requestedRole === 'rider' ? {
+        type: req.body.vehicleType || 'Motorbike',
+        model: req.body.vehicleModel || 'Standard',
+        plateNumber: req.body.vehiclePlateNumber || 'WP BDF-0000',
+      } : undefined,
       emailVerified: true,
       googleId: payload.sub,
       profileImage: payload.picture,
@@ -435,14 +446,27 @@ async function googleLogin(req, res) {
     if (!user.googleId) user.googleId = payload.sub;
     if (!user.emailVerified) user.emailVerified = true;
     if (!user.profileImage && payload.picture) user.profileImage = payload.picture;
+
+    // Set role for the target portal if not admin
+    if (user.role !== 'admin') {
+      user.role = requestedRole;
+    }
+
     if (requestedRole === 'cook') {
-      if (user.role === 'customer') {
-        user.role = 'cook';
-      }
       if (req.body.kitchenName) {
         user.kitchenName = req.body.kitchenName.trim();
       } else if (!user.kitchenName) {
         user.kitchenName = `${user.name || payload.name || 'Home Cook'}'s Kitchen`;
+      }
+      if (req.body.phone) user.phone = normalizePhone(req.body.phone);
+      if (req.body.address) user.address = req.body.address.trim();
+    } else if (requestedRole === 'rider') {
+      if (!user.vehicleDetails || !user.vehicleDetails.plateNumber) {
+        user.vehicleDetails = {
+          type: req.body.vehicleType || user.vehicleDetails?.type || 'Motorbike',
+          model: req.body.vehicleModel || user.vehicleDetails?.model || 'Standard',
+          plateNumber: req.body.vehiclePlateNumber || user.vehicleDetails?.plateNumber || 'WP BDF-0000',
+        };
       }
       if (req.body.phone) user.phone = normalizePhone(req.body.phone);
       if (req.body.address) user.address = req.body.address.trim();
