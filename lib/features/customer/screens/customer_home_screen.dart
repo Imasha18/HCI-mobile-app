@@ -7,6 +7,7 @@ import '../../../core/widgets/skeleton_loaders.dart';
 import '../../../models/meal_model.dart';
 import '../../../models/meal_recommendation_model.dart';
 import '../providers/cooks_provider.dart';
+import '../providers/customer_provider.dart';
 import '../providers/meal_provider.dart';
 import '../providers/recommendation_provider.dart';
 
@@ -32,8 +33,38 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     });
   }
 
+  String _getDeliveryTown(Map<String, dynamic>? user) {
+    if (user == null) return 'Colombo 03';
+    final town = (user['town'] as String?)?.trim();
+    if (town != null && town.isNotEmpty) return town;
+    final city = (user['city'] as String?)?.trim();
+    if (city != null && city.isNotEmpty) return city;
+    final address = (user['address'] as String?)?.trim();
+    if (address != null && address.isNotEmpty) {
+      var cleaned = address.replaceAll(RegExp(r',\s*Sri Lanka$', caseSensitive: false), '').trim();
+      final colomboMatch = RegExp(r'colombo[\s-]*(?:0?[1-9]|1[0-5])\b', caseSensitive: false).firstMatch(cleaned);
+      if (colomboMatch != null) {
+        final digits = colomboMatch.group(0)!.replaceAll(RegExp(r'[^0-9]'), '');
+        return digits.isNotEmpty ? 'Colombo ${digits.padLeft(2, '0')}' : 'Colombo';
+      }
+      final parts = cleaned.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+      for (int i = parts.length - 1; i >= 0; i--) {
+        var part = parts[i];
+        if (RegExp(r'^sri lanka$', caseSensitive: false).hasMatch(part)) continue;
+        if (RegExp(r'^(lk-?)?\d{4,6}$', caseSensitive: false).hasMatch(part)) continue;
+        part = part.replaceAll(RegExp(r'[-,\s]*\b\d{4,6}\b.*$'), '').trim();
+        if (part.isNotEmpty) {
+          return part.split(' ').map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1).toLowerCase()).join(' ');
+        }
+      }
+      if (parts.isNotEmpty) return parts.last;
+    }
+    return 'Colombo 03';
+  }
+
   Future<void> _refreshAllData({bool forceRefresh = false}) async {
     await Future.wait([
+      ref.read(customerProvider.notifier).loadProfile(forceRefresh: forceRefresh),
       ref.read(mealProvider.notifier).fetchMeals(
             category: _selectedCategory == 'All' ? null : _selectedCategory,
             forceRefresh: forceRefresh,
@@ -46,6 +77,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final customerState = ref.watch(customerProvider);
+    final deliveryTown = _getDeliveryTown(customerState.user);
     final meals = ref.watch(mealProvider);
     final cooksAsync = ref.watch(cooksProvider);
     final recState = ref.watch(recommendationProvider);
@@ -53,15 +86,25 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'DELIVER TO',
-              style: TextStyle(fontSize: 11, letterSpacing: 1.2),
-            ),
-            Text('Colombo 03  ·  Change', style: TextStyle(fontSize: 14)),
-          ],
+        automaticallyImplyLeading: false,
+        title: InkWell(
+          onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+          borderRadius: BorderRadius.circular(4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'DELIVER TO',
+                style: TextStyle(fontSize: 11, letterSpacing: 1.2),
+              ),
+              Text(
+                '$deliveryTown  ·  Change',
+                style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(

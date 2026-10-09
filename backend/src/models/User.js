@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['customer', 'cook', 'rider', 'admin'], default: 'customer' },
   phone: { type: String, trim: true, default: '' },
   address: { type: String, trim: true, default: '' },
+  city: { type: String, trim: true, default: '' },
+  town: { type: String, trim: true, default: '' },
   profileImage: { type: String, default: '' },
   isVerified: { type: Boolean, default: true },
   rating: { type: Number, default: 4.8 },
