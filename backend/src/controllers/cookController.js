@@ -135,7 +135,11 @@ async function getCookDashboard(req, res) {
 // Cook's meals list (GET /api/cooks/meals)
 async function getCookMeals(req, res) {
   const cookId = req.user.id;
-  const meals = await Meal.find({ cook: cookId }).sort({ createdAt: -1 });
+  const kitchen = await Kitchen.findOne({ cookId });
+  const filter = req.user.role === 'admin'
+    ? {}
+    : (kitchen ? { $or: [{ cook: cookId }, { kitchen: kitchen._id }] } : { cook: cookId });
+  const meals = await Meal.find(filter).sort({ createdAt: -1 });
   return sendSuccess(res, meals);
 }
 

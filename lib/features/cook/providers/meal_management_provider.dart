@@ -44,7 +44,7 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final response = await _client.dio.get('/cooks/meals');
-      final data = response.data['data'] as List<dynamic>;
+      final data = (response.data['data'] as List<dynamic>?) ?? [];
       state = state.copyWith(isLoading: false, meals: data);
     } on DioException catch (e) {
       state = state.copyWith(
@@ -209,11 +209,22 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
   }
 
   Future<bool> deleteMeal(String id) async {
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _client.dio.delete('/meals/$id');
       await fetchMeals();
       return true;
-    } catch (_) {
+    } on DioException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(e),
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to delete meal: $e',
+      );
       return false;
     }
   }
@@ -221,7 +232,7 @@ class MealManagementNotifier extends StateNotifier<MealManagementState> {
   Future<void> toggleAvailability(String id, bool newStatus) async {
     // Optimistic UI update
     final currentMeals = [...state.meals];
-    final index = currentMeals.indexWhere((m) => m['_id'] == id);
+    final index = currentMeals.indexWhere((m) => (m['_id'] ?? m['id'])?.toString() == id);
     if (index != -1) {
       final updated = Map<String, dynamic>.from(currentMeals[index]);
       updated['available'] = newStatus;

@@ -15,6 +15,7 @@ class AddMealScreen extends ConsumerStatefulWidget {
 
 class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
@@ -40,6 +41,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
@@ -52,7 +54,21 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   Future<void> _submitMeal() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in required fields (Meal Name, Price).'),
+          backgroundColor: CookTheme.statusRed,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
     final cookingTime = int.tryParse(_cookingTimeController.text.trim()) ?? 25;
@@ -88,7 +104,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               : _presetImages[0],
         );
 
-    if (success && mounted) {
+    if (!mounted) return;
+
+    if (success) {
       await ref.read(cookProvider.notifier).fetchDashboard();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -98,6 +116,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         ),
       );
       Navigator.pop(context);
+    } else {
+      final errorMsg = ref.read(mealManagementProvider).error ?? 'Failed to add meal';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: CookTheme.statusRed,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -121,6 +148,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         ),
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,

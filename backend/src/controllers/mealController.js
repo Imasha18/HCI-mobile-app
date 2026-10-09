@@ -140,7 +140,16 @@ async function updateMeal(req, res) {
     return res.status(404).json({ success: false, message: 'Invalid meal ID' });
   }
 
-  const meal = await Meal.findOne({ _id: req.params.id, cook: req.user.id });
+  let meal = await Meal.findOne({ _id: req.params.id, cook: req.user.id });
+  if (!meal) {
+    const kitchen = await Kitchen.findOne({ cookId: req.user.id });
+    if (kitchen) {
+      meal = await Meal.findOne({ _id: req.params.id, kitchen: kitchen._id });
+    }
+  }
+  if (!meal && req.user.role === 'admin') {
+    meal = await Meal.findById(req.params.id);
+  }
   if (!meal) {
     return res.status(404).json({ success: false, message: 'Meal not found or not owned by you' });
   }
@@ -192,11 +201,21 @@ async function deleteMeal(req, res) {
     return res.status(404).json({ success: false, message: 'Invalid meal ID' });
   }
 
-  const meal = await Meal.findOneAndDelete({ _id: req.params.id, cook: req.user.id });
+  let meal = await Meal.findOne({ _id: req.params.id, cook: req.user.id });
+  if (!meal) {
+    const kitchen = await Kitchen.findOne({ cookId: req.user.id });
+    if (kitchen) {
+      meal = await Meal.findOne({ _id: req.params.id, kitchen: kitchen._id });
+    }
+  }
+  if (!meal && req.user.role === 'admin') {
+    meal = await Meal.findById(req.params.id);
+  }
   if (!meal) {
     return res.status(404).json({ success: false, message: 'Meal not found or not owned by you' });
   }
 
+  await meal.deleteOne();
   return sendSuccess(res, { id: meal._id }, 'Meal deleted successfully');
 }
 
@@ -206,7 +225,16 @@ async function toggleAvailability(req, res) {
     return res.status(404).json({ success: false, message: 'Invalid meal ID' });
   }
 
-  const meal = await Meal.findOne({ _id: req.params.id, cook: req.user.id });
+  let meal = await Meal.findOne({ _id: req.params.id, cook: req.user.id });
+  if (!meal) {
+    const kitchen = await Kitchen.findOne({ cookId: req.user.id });
+    if (kitchen) {
+      meal = await Meal.findOne({ _id: req.params.id, kitchen: kitchen._id });
+    }
+  }
+  if (!meal && req.user.role === 'admin') {
+    meal = await Meal.findById(req.params.id);
+  }
   if (!meal) {
     return res.status(404).json({ success: false, message: 'Meal not found' });
   }
