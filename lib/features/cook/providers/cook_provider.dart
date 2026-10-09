@@ -69,6 +69,7 @@ class CookNotifier extends StateNotifier<CookState> {
       final user = data['user'] as Map<String, dynamic>;
 
       await _storage.write(key: 'auth_token', value: token);
+      _client.updateAuthToken(token);
 
       state = state.copyWith(
         isLoading: false,
@@ -97,9 +98,9 @@ class CookNotifier extends StateNotifier<CookState> {
     required String name,
     required String email,
     required String password,
-    String? kitchenName,
-    String? phone,
-    String? address,
+    required String kitchenName,
+    required String phone,
+    required String address,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
@@ -109,12 +110,44 @@ class CookNotifier extends StateNotifier<CookState> {
           'name': name.trim(),
           'email': email.trim(),
           'password': password,
-          'kitchenName': kitchenName?.trim().isNotEmpty == true
-              ? kitchenName!.trim()
-              : '$name\'s Kitchen',
-          'phone': phone?.trim() ?? '',
-          'address': address?.trim() ?? '',
+          'kitchenName': kitchenName.trim(),
+          'phone': phone.trim(),
+          'address': address.trim(),
           'role': 'cook',
+        },
+      );
+
+      final data = response.data['data'] as Map<String, dynamic>? ?? {};
+      final user = data['user'] as Map<String, dynamic>?;
+
+      state = state.copyWith(
+        isLoading: false,
+        cook: user,
+      );
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(e),
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to create cook account: $e',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmail(String email, String code) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.post(
+        '/auth/verify-email',
+        data: {
+          'email': email.trim().toLowerCase(),
+          'code': code.trim(),
         },
       );
 
@@ -123,6 +156,7 @@ class CookNotifier extends StateNotifier<CookState> {
       final user = data['user'] as Map<String, dynamic>;
 
       await _storage.write(key: 'auth_token', value: token);
+      _client.updateAuthToken(token);
 
       state = state.copyWith(
         isLoading: false,
@@ -141,9 +175,72 @@ class CookNotifier extends StateNotifier<CookState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to create cook account: $e',
+        error: 'Verification failed: $e',
       );
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> googleAuth({
+    required String idToken,
+    String? kitchenName,
+    String? phone,
+    String? address,
+    String? name,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await _client.dio.post(
+        '/auth/google',
+        data: {
+          'idToken': idToken,
+          'role': 'cook',
+          if (kitchenName != null) 'kitchenName': kitchenName.trim(),
+          if (phone != null) 'phone': phone.trim(),
+          if (address != null) 'address': address.trim(),
+          if (name != null) 'name': name.trim(),
+        },
+      );
+
+      final body = response.data as Map<String, dynamic>;
+      if (body['requiresProfileCompletion'] == true) {
+        state = state.copyWith(isLoading: false);
+        return {
+          'requiresProfileCompletion': true,
+          'data': body['data'],
+        };
+      }
+
+      final data = body['data'] as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = data['user'] as Map<String, dynamic>;
+
+      await _storage.write(key: 'auth_token', value: token);
+      _client.updateAuthToken(token);
+
+      state = state.copyWith(
+        isLoading: false,
+        cook: user,
+        isOnline: user['isOnline'] as bool? ?? true,
+      );
+
+      await fetchDashboard();
+      return {
+        'requiresProfileCompletion': false,
+        'user': user,
+      };
+    } on DioException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: ApiClient.messageFrom(e),
+      );
+      return null;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Google sign-in failed: $e',
+      );
+      return null;
     }
   }
 
@@ -205,6 +302,7 @@ class CookNotifier extends StateNotifier<CookState> {
 
   Future<void> logout() async {
     await _storage.delete(key: 'auth_token');
+    _client.clearCache();
     state = const CookState();
   }
 }
@@ -212,3 +310,4 @@ class CookNotifier extends StateNotifier<CookState> {
 final cookProvider = StateNotifierProvider<CookNotifier, CookState>((ref) {
   return CookNotifier(ApiClient(), const FlutterSecureStorage());
 });
+

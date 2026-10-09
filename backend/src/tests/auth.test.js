@@ -203,6 +203,23 @@ describe('PendingRegistration Model and Registration Flow', () => {
     expect(pendingRider.vehicleDetails.plateNumber).toBe('WP BDF-4821');
   });
 
+  test('PendingRegistration supports cook kitchenName', () => {
+    const pendingCook = new PendingRegistration({
+      name: 'Sunil Cook',
+      email: 'sunil@example.com',
+      password: 'hashed_password_789',
+      phone: '+94 77 123 4567',
+      address: '45/2 Galle Road, Colombo 03',
+      kitchenName: "Sunil's Kitchen",
+      role: 'cook',
+      verificationCodeHash: 'abcdef789',
+      verificationExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    });
+
+    expect(pendingCook.role).toBe('cook');
+    expect(pendingCook.kitchenName).toBe("Sunil's Kitchen");
+  });
+
   test('email verification endpoint rejects missing verification code', async () => {
     const response = await request(app)
       .post('/api/auth/verify-email')
@@ -210,6 +227,104 @@ describe('PendingRegistration Model and Registration Flow', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toBe('Verification code is required');
+  });
+});
+
+describe('validateCookRegistration', () => {
+  const { validateCookRegistration } = require('../validators/authValidator');
+
+  test('validates valid cook registration data', () => {
+    const errors = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: "Amara's Kitchen",
+      email: 'amara@gmail.com',
+      phone: '0771234567',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'Password123',
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  test('rejects short name', () => {
+    const errors = validateCookRegistration({
+      name: 'A',
+      kitchenName: "Amara's Kitchen",
+      email: 'amara@gmail.com',
+      phone: '0771234567',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'Password123',
+    });
+    expect(errors).toContain('Enter your full name.');
+  });
+
+  test('rejects short kitchen name', () => {
+    const errors = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: 'A',
+      email: 'amara@gmail.com',
+      phone: '0771234567',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'Password123',
+    });
+    expect(errors).toContain('Enter your kitchen name.');
+  });
+
+  test('rejects invalid email', () => {
+    const errors = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: "Amara's Kitchen",
+      email: 'invalid-email',
+      phone: '0771234567',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'Password123',
+    });
+    expect(errors).toContain('Enter a valid email address.');
+  });
+
+  test('rejects invalid phone number', () => {
+    const errors = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: "Amara's Kitchen",
+      email: 'amara@gmail.com',
+      phone: '12345',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'Password123',
+    });
+    expect(errors).toContain('Enter a valid Sri Lankan phone number.');
+  });
+
+  test('rejects short address', () => {
+    const errors = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: "Amara's Kitchen",
+      email: 'amara@gmail.com',
+      phone: '0771234567',
+      address: 'Col',
+      password: 'Password123',
+    });
+    expect(errors).toContain('Enter your kitchen address.');
+  });
+
+  test('rejects password without minimum length or number', () => {
+    const errors1 = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: "Amara's Kitchen",
+      email: 'amara@gmail.com',
+      phone: '0771234567',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'short',
+    });
+    expect(errors1).toContain('Password must be at least 8 characters.');
+
+    const errors2 = validateCookRegistration({
+      name: 'Amara Fernando',
+      kitchenName: "Amara's Kitchen",
+      email: 'amara@gmail.com',
+      phone: '0771234567',
+      address: '45/2 Galle Road, Colombo 03',
+      password: 'passwordonly',
+    });
+    expect(errors2).toContain('Password must include at least one number.');
   });
 });
 
