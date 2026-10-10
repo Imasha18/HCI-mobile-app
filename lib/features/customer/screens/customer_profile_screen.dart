@@ -13,11 +13,7 @@ class CustomerProfileScreen extends ConsumerStatefulWidget {
       _CustomerProfileScreenState();
 }
 
-class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
+class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   @override
   void initState() {
     super.initState();
@@ -70,7 +66,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     final state = ref.watch(customerProvider);
     final user = state.user;
 
@@ -191,7 +186,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
                         ),
                         TextButton.icon(
                           onPressed: () => _editProfileDialog(
-                            context,
+                            name,
                             phone,
                             address,
                           ),
@@ -334,89 +329,222 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen>
     );
   }
 
-  void _editProfileDialog(BuildContext context, String currentPhone, String currentAddress) {
-    final phoneCtrl = TextEditingController(text: currentPhone);
-    final addressCtrl = TextEditingController(text: currentAddress);
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
+  Future<void> _editProfileDialog(
+    String currentName,
+    String currentPhone,
+    String currentAddress,
+  ) async {
+    final updated = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Edit Delivery & Contact'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    hintText: '077 123 4567 or +94 77 123 4567',
-                    prefixIcon: Icon(Icons.phone_outlined),
+      builder: (ctx) => _EditCustomerProfileDialog(
+        currentName: currentName,
+        currentPhone: currentPhone,
+        currentAddress: currentAddress,
+        onSave: (name, phone, address) async {
+          final ok = await ref.read(customerProvider.notifier).updateProfile({
+            'name': name,
+            'phone': phone,
+            'address': address,
+          });
+          if (ok) return null;
+          return ref.read(customerProvider).error ?? 'Unable to update profile.';
+        },
+      ),
+    );
+
+    if (updated == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: Color(0xFF2E7D32),
+        ),
+      );
+    }
+  }
+}
+
+class _EditCustomerProfileDialog extends StatefulWidget {
+  final String currentName;
+  final String currentPhone;
+  final String currentAddress;
+  final Future<String?> Function(String name, String phone, String address) onSave;
+
+  const _EditCustomerProfileDialog({
+    required this.currentName,
+    required this.currentPhone,
+    required this.currentAddress,
+    required this.onSave,
+  });
+
+  @override
+  State<_EditCustomerProfileDialog> createState() => _EditCustomerProfileDialogState();
+}
+
+class _EditCustomerProfileDialogState extends State<_EditCustomerProfileDialog> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _addressCtrl;
+  final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.currentName);
+    _phoneCtrl = TextEditingController(text: widget.currentPhone);
+    _addressCtrl = TextEditingController(text: widget.currentAddress);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.onSave(
+      _nameCtrl.text.trim(),
+      _phoneCtrl.text.trim(),
+      _addressCtrl.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() {
+        _isSaving = false;
+        _errorMessage = error;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      title: const Text('Edit Delivery & Contact'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
                   ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Phone number is required';
-                    }
-                    final cleaned = val.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-                    final regex = RegExp(r'^(?:(?:\+94|0094|94|0)?[1-9]\d{8})$');
-                    if (!regex.hasMatch(cleaned)) {
-                      return 'Enter a valid Sri Lankan phone number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: addressCtrl,
-                  keyboardType: TextInputType.multiline,
-                  maxLines: 3,
-                  minLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Delivery Address',
-                    hintText: 'No. 25, Main Street, Nugegoda',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                    alignLabelWithHint: true,
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, size: 18, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
-                  validator: (val) => val == null || val.trim().length < 5
-                      ? 'Please enter a complete delivery address'
-                      : null,
                 ),
+                const SizedBox(height: 12),
               ],
-            ),
+              TextFormField(
+                controller: _nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  hintText: 'e.g. Sanuthi Lihansa',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Full name cannot be empty';
+                  }
+                  if (val.trim().length < 2) {
+                    return 'Full name must be at least 2 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: '077 123 4567 or +94 77 123 4567',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Phone number is required';
+                  }
+                  final cleaned = val.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+                  final regex = RegExp(r'^(?:(?:\+94|0094|94|0)?[1-9]\d{8})$');
+                  if (!regex.hasMatch(cleaned)) {
+                    return 'Enter a valid Sri Lankan phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _addressCtrl,
+                keyboardType: TextInputType.multiline,
+                maxLines: 3,
+                minLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery Address',
+                  hintText: 'No. 25, Main Street, Nugegoda',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  alignLabelWithHint: true,
+                ),
+                validator: (val) => val == null || val.trim().length < 5
+                    ? 'Please enter a complete delivery address'
+                    : null,
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              final messenger = ScaffoldMessenger.of(context);
-              Navigator.pop(ctx);
-              final ok = await ref.read(customerProvider.notifier).updateProfile({
-                'phone': phoneCtrl.text.trim(),
-                'address': addressCtrl.text.trim(),
-              });
-              if (ok) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Profile updated successfully!')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
-    ).then((_) {
-      phoneCtrl.dispose();
-      addressCtrl.dispose();
-    });
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isSaving ? null : _handleSave,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFFF7A00),
+          ),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Save'),
+        ),
+      ],
+    );
   }
 }
