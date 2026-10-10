@@ -62,6 +62,33 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     return 'Colombo 03';
   }
 
+  String _greetingTitle(Map<String, dynamic>? user) {
+    final hour = DateTime.now().hour;
+    final timeGreeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+
+    final name = (user?['name'] as String?)?.trim();
+    if (name != null && name.isNotEmpty) {
+      final firstName = name.split(' ').first;
+      return '$timeGreeting, $firstName!';
+    }
+    return '$timeGreeting!';
+  }
+
+  IconData _greetingIcon() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return Icons.wb_sunny_rounded;
+    } else if (hour < 17) {
+      return Icons.lunch_dining_rounded;
+    } else {
+      return Icons.dinner_dining_rounded;
+    }
+  }
+
   Future<void> _refreshAllData({bool forceRefresh = false}) async {
     await Future.wait([
       ref.read(customerProvider.notifier).loadProfile(forceRefresh: forceRefresh),
@@ -121,12 +148,65 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           key: const PageStorageKey<String>('customer_home_scroll'),
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
           children: [
-            Text(
-              'Good evening.',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF7A00), Color(0xFFFF9800)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x24FF7A00),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _greetingTitle(customerState.user),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'What are you craving today?',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _greetingIcon(),
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const Text('What are you craving today?'),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             TextField(
               readOnly: true,
               onTap: () => Navigator.pushNamed(context, AppRoutes.search),
