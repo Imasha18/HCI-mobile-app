@@ -21,6 +21,7 @@ class OrderNotifier extends AsyncNotifier<List<OrderModel>> {
     CartModel cart,
     String address, {
     String? phone,
+    String? recipientName,
     bool saveAsDefault = false,
   }) async {
     final response = await ApiClient().dio.post(
@@ -29,8 +30,12 @@ class OrderNotifier extends AsyncNotifier<List<OrderModel>> {
         'deliveryAddress': {
           'address': address,
           if (phone != null && phone.isNotEmpty) 'phone': phone,
+          if (recipientName != null && recipientName.isNotEmpty)
+            'recipient': recipientName,
         },
         if (phone != null && phone.isNotEmpty) 'deliveryPhone': phone,
+        if (recipientName != null && recipientName.isNotEmpty)
+          'recipientName': recipientName,
         'saveAsDefault': saveAsDefault,
         'items': cart.items
             .map(

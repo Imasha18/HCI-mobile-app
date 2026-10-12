@@ -14,6 +14,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  String _recipientName = '';
   String _address = '';
   String _phone = '';
   bool _saveAsDefault = false;
@@ -33,116 +34,65 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   void _syncSavedDetails(Map<String, dynamic>? user) {
     if (!_initialized && user != null) {
+      _recipientName = (user['name'] as String?)?.trim() ?? '';
       _address = (user['address'] as String?)?.trim() ?? '';
       _phone = (user['phone'] as String?)?.trim() ?? '';
       _initialized = true;
     }
   }
 
-  void _openAddressDialog(BuildContext context) {
-    final addressCtrl = TextEditingController(text: _address);
-    final phoneCtrl = TextEditingController(text: _phone);
-    bool saveDefault = _saveAsDefault;
-    final formKey = GlobalKey<FormState>();
+  Future<void> _openDeliveryDetailsDialog() async {
+    final customer = ref.read(customerProvider);
+    final defaultName = (customer.user?['name'] as String?)?.trim() ?? '';
+    final initialName = _recipientName.isNotEmpty ? _recipientName : defaultName;
 
-    showDialog(
+    final updated = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Text('Change Delivery Details'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Specify the delivery address and phone number for this order.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF666666)),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: addressCtrl,
-                    keyboardType: TextInputType.multiline,
-                    maxLines: 3,
-                    minLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Delivery Address',
-                      hintText: 'No. 25, Main Street, Nugegoda, Colombo',
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                      alignLabelWithHint: true,
-                    ),
-                    validator: (val) => val == null || val.trim().length < 5
-                        ? 'Please enter a complete delivery address'
-                        : null,
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone Number',
-                      hintText: '077 123 4567 or +94 77 123 4567',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Phone number is required';
-                      }
-                      final cleaned = val.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-                      final regex = RegExp(r'^(?:(?:\+94|0094|94|0)?[1-9]\d{8})$');
-                      if (!regex.hasMatch(cleaned)) {
-                        return 'Enter a valid Sri Lankan phone number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    activeColor: const Color(0xFFFF7A00),
-                    title: const Text(
-                      'Save this as my default address',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    value: saveDefault,
-                    onChanged: (val) {
-                      setDialogState(() {
-                        saveDefault = val ?? false;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                setState(() {
-                  _address = addressCtrl.text.trim();
-                  _phone = phoneCtrl.text.trim();
-                  _saveAsDefault = saveDefault;
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Use for this order'),
-            ),
-          ],
-        ),
+      barrierDismissible: false,
+      builder: (ctx) => _EditCheckoutDeliveryDialog(
+        initialName: initialName,
+        initialAddress: _address,
+        initialPhone: _phone,
+        initialSaveDefault: _saveAsDefault,
+        onSave: ({
+          required String name,
+          required String address,
+          required String phone,
+          required bool saveAsDefault,
+        }) async {
+          if (saveAsDefault) {
+            final ok = await ref.read(customerProvider.notifier).updateProfile({
+              'name': name,
+              'phone': phone,
+              'address': address,
+            });
+            if (!ok) {
+              return ref.read(customerProvider).error ??
+                  'Failed to update profile details.';
+            }
+          }
+          if (mounted) {
+            setState(() {
+              _recipientName = name;
+              _address = address;
+              _phone = phone;
+              _saveAsDefault = saveAsDefault;
+            });
+          }
+          return null;
+        },
       ),
-    ).then((_) {
-      addressCtrl.dispose();
-      phoneCtrl.dispose();
-    });
+    );
+
+    if (!mounted) return;
+    if (updated == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Delivery details updated for this order!'),
+          backgroundColor: Color(0xFF2E7D32),
+        ),
+      );
+    }
   }
 
   Future<void> _placeOrder() async {
@@ -164,15 +114,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     setState(() => _loading = true);
     try {
+      final customerState = ref.read(customerProvider);
+      final defaultName = (customerState.user?['name'] as String?)?.trim() ?? 'HomeBite Customer';
+      final activeRecipient = _recipientName.trim().isNotEmpty ? _recipientName.trim() : defaultName;
+
       final order = await ref.read(orderProvider.notifier).createOrder(
             cart,
             _address.trim(),
             phone: _phone.trim(),
+            recipientName: activeRecipient,
             saveAsDefault: _saveAsDefault,
           );
 
       if (_saveAsDefault) {
         ref.read(customerProvider.notifier).updateProfile({
+          if (_recipientName.trim().isNotEmpty) 'name': _recipientName.trim(),
           'address': _address.trim(),
           'phone': _phone.trim(),
         });
@@ -205,6 +161,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final customerName =
         (customerState.user?['name'] as String?) ?? 'HomeBite Customer';
+    final displayName =
+        _recipientName.isNotEmpty ? _recipientName : customerName;
     final hasMissingInfo = _address.isEmpty || _phone.isEmpty;
 
     return Scaffold(
@@ -263,7 +221,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               backgroundColor: const Color(0xFFFF9800),
                               foregroundColor: Colors.white,
                             ),
-                            onPressed: () => _openAddressDialog(context),
+                            onPressed: _openDeliveryDetailsDialog,
                             child: const Text('Add Details Now'),
                           ),
                         ],
@@ -282,86 +240,89 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 borderRadius: BorderRadius.circular(16),
                 side: const BorderSide(color: Color(0xFFEFEAE3)),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.local_shipping_outlined,
-                              color: Color(0xFFFF7A00),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Delivery Details',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Color(0xFF252525),
-                              ),
-                            ),
-                          ],
-                        ),
-                        TextButton.icon(
-                          onPressed: () => _openAddressDialog(context),
-                          icon: const Icon(
-                            Icons.edit_outlined,
-                            size: 16,
-                            color: Color(0xFFFF7A00),
-                          ),
-                          label: Text(
-                            hasMissingInfo ? 'Add' : 'Change',
-                            style: const TextStyle(
-                              color: Color(0xFFFF7A00),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
-
-                    // Deliver to
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.person_outline,
-                          size: 18,
-                          color: Color(0xFF888888),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: _openDeliveryDetailsDialog,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
                             children: [
-                              const Text(
-                                'Deliver to',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF888888),
-                                ),
+                              const Icon(
+                                Icons.local_shipping_outlined,
+                                color: Color(0xFFFF7A00),
+                                size: 20,
                               ),
-                              Text(
-                                customerName,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Delivery Details',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                   color: Color(0xFF252525),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                          TextButton.icon(
+                            onPressed: _openDeliveryDetailsDialog,
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 16,
+                              color: Color(0xFFFF7A00),
+                            ),
+                            label: Text(
+                              hasMissingInfo ? 'Add' : 'Change',
+                              style: const TextStyle(
+                                color: Color(0xFFFF7A00),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 20),
+
+                      // Deliver to
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.person_outline,
+                            size: 18,
+                            color: Color(0xFF888888),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Deliver to',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF888888),
+                                  ),
+                                ),
+                                Text(
+                                  displayName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF252525),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
 
                     // Delivery Address
                     Row(
@@ -477,8 +438,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
               ),
             ),
+          ),
 
-            const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
             // Order summary
             Text(
@@ -566,7 +528,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Deliver to: $customerName',
+                    'Deliver to: $displayName',
                     style: const TextStyle(fontSize: 12.5),
                   ),
                   Text(
@@ -599,6 +561,233 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         error: (error, _) => Center(child: Text(error.toString())),
         loading: () => const Center(child: CircularProgressIndicator()),
       ),
+    );
+  }
+}
+
+class _EditCheckoutDeliveryDialog extends StatefulWidget {
+  const _EditCheckoutDeliveryDialog({
+    required this.initialName,
+    required this.initialAddress,
+    required this.initialPhone,
+    required this.initialSaveDefault,
+    required this.onSave,
+  });
+
+  final String initialName;
+  final String initialAddress;
+  final String initialPhone;
+  final bool initialSaveDefault;
+  final Future<String?> Function({
+    required String name,
+    required String address,
+    required String phone,
+    required bool saveAsDefault,
+  }) onSave;
+
+  @override
+  State<_EditCheckoutDeliveryDialog> createState() =>
+      _EditCheckoutDeliveryDialogState();
+}
+
+class _EditCheckoutDeliveryDialogState
+    extends State<_EditCheckoutDeliveryDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _addressCtrl;
+  late final TextEditingController _phoneCtrl;
+  late bool _saveDefault;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.initialName);
+    _addressCtrl = TextEditingController(text: widget.initialAddress);
+    _phoneCtrl = TextEditingController(text: widget.initialPhone);
+    _saveDefault = widget.initialSaveDefault;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _addressCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.onSave(
+      name: _nameCtrl.text.trim(),
+      address: _addressCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      saveAsDefault: _saveDefault,
+    );
+
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() {
+        _isSaving = false;
+        _errorMessage = error;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      title: const Text('Change Delivery Details'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, size: 18, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              const Text(
+                'Specify the recipient name, delivery address, and phone number for this order.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF666666)),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Deliver to (Name)',
+                  hintText: 'e.g. Sanuthi Lihansa',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Recipient name is required';
+                  }
+                  if (val.trim().length < 2) {
+                    return 'Name must be at least 2 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _addressCtrl,
+                keyboardType: TextInputType.multiline,
+                maxLines: 3,
+                minLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery Address',
+                  hintText: 'No. 25, Main Street, Nugegoda, Colombo',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  alignLabelWithHint: true,
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Please enter a complete delivery address';
+                  }
+                  if (val.trim().length < 5) {
+                    return 'Please enter a complete delivery address';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: '077 123 4567 or +94 77 123 4567',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Phone number is required';
+                  }
+                  final cleaned = val.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+                  final regex = RegExp(r'^(?:(?:\+94|0094|94|0)?[1-9]\d{8})$');
+                  if (!regex.hasMatch(cleaned)) {
+                    return 'Enter a valid Sri Lankan phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeColor: const Color(0xFFFF7A00),
+                title: const Text(
+                  'Save as my default profile address',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                value: _saveDefault,
+                onChanged: _isSaving
+                    ? null
+                    : (val) {
+                        setState(() {
+                          _saveDefault = val ?? false;
+                        });
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _isSaving ? null : _handleSave,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFFF7A00),
+          ),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Use for this order'),
+        ),
+      ],
     );
   }
 }
