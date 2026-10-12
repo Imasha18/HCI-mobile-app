@@ -114,10 +114,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     setState(() => _loading = true);
     try {
+      final customerState = ref.read(customerProvider);
+      final defaultName = (customerState.user?['name'] as String?)?.trim() ?? 'HomeBite Customer';
+      final activeRecipient = _recipientName.trim().isNotEmpty ? _recipientName.trim() : defaultName;
+
       final order = await ref.read(orderProvider.notifier).createOrder(
             cart,
             _address.trim(),
             phone: _phone.trim(),
+            recipientName: activeRecipient,
             saveAsDefault: _saveAsDefault,
           );
 
