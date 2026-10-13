@@ -26,10 +26,28 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
   late String _currentStatus;
   bool _isUpdating = false;
 
+  Map<String, dynamic>? _safeMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  String _safeText(dynamic value, [String fallback = '']) {
+    if (value == null) return fallback;
+    if (value is String) return value.trim().isEmpty ? fallback : value;
+    if (value is num || value is bool) return value.toString();
+    final map = _safeMap(value);
+    if (map != null) {
+      final objectId = map[r'$oid'] ?? map['_id'] ?? map['id'] ?? map['value'];
+      return objectId == null ? fallback : _safeText(objectId, fallback);
+    }
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
-    _currentStatus = (widget.order['status'] as String?) ?? 'Order Received';
+    _currentStatus = _safeText(widget.order['status'], 'Order Received');
   }
 
   String get _normalizedStatus {
@@ -47,8 +65,18 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
   }
 
   Future<void> _updateStatus(String nextStatus) async {
+    if (_normalizedStatus == nextStatus) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Order is already $nextStatus'),
+          backgroundColor: CookTheme.statusGreen,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isUpdating = true);
-    final orderId = widget.order['_id'] as String;
+    final orderId = _safeText(widget.order['_id']);
 
     final success = await ref.read(cookOrderProvider.notifier).updateStatus(orderId, nextStatus);
 
@@ -58,9 +86,10 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
         if (success) _currentStatus = nextStatus;
       });
 
+      final errorMessage = ref.read(cookOrderProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? 'Order updated to $nextStatus' : 'Failed to update order status'),
+          content: Text(success ? 'Order updated to $nextStatus' : (errorMessage ?? 'Failed to update order status')),
           backgroundColor: success ? CookTheme.statusGreen : CookTheme.statusRed,
         ),
       );
@@ -69,10 +98,10 @@ class _UpdateOrderStatusScreenState extends ConsumerState<UpdateOrderStatusScree
 
   @override
   Widget build(BuildContext context) {
-    final orderId = widget.order['_id'] as String;
+    final orderId = _safeText(widget.order['_id']);
     final shortId = orderId.length > 6 ? orderId.substring(orderId.length - 6).toUpperCase() : orderId;
-    final customer = widget.order['customer'] as Map<String, dynamic>?;
-    final customerName = customer?['name'] as String? ?? 'Customer';
+    final customer = _safeMap(widget.order['customer']);
+    final customerName = _safeText(customer?['name'], 'Customer');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FB),

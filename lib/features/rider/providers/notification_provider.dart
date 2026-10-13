@@ -68,12 +68,30 @@ class RiderNotificationNotifier extends StateNotifier<RiderNotificationState> {
     } catch (_) {}
   }
 
-  Future<void> deleteNotification(String id) async {
+  Future<bool> deleteNotification(String id) async {
     try {
       await _client.dio.delete('/notifications/$id');
       final updated = state.notifications.where((n) => (n['_id'] ?? n['id']) != id).toList();
       state = state.copyWith(notifications: updated);
+      return true;
     } catch (_) {}
+    return false;
+  }
+
+  Future<int> deleteAllNotifications() async {
+    final ids = state.notifications
+        .map((n) => (n['_id'] ?? n['id'] ?? '').toString())
+        .where((id) => id.isNotEmpty)
+        .toList();
+
+    var deletedCount = 0;
+    for (final id in ids) {
+      final deleted = await deleteNotification(id);
+      if (deleted) {
+        deletedCount++;
+      }
+    }
+    return deletedCount;
   }
 
   void reset() {

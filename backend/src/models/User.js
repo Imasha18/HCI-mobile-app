@@ -67,6 +67,15 @@ const userSchema = new mongoose.Schema({
     accountNumber: { type: String, default: '', trim: true },
     isVerified: { type: Boolean, default: false },
   },
+  payoutAccounts: [{
+    accountId: { type: String, required: true, trim: true },
+    accountHolderName: { type: String, required: true, trim: true },
+    bankName: { type: String, required: true, trim: true },
+    branchName: { type: String, default: '', trim: true },
+    accountNumber: { type: String, required: true, trim: true },
+    createdAt: { type: Date, default: Date.now },
+  }],
+  currentPayoutAccountId: { type: String, default: '', trim: true },
   cookDocuments: {
     type: mongoose.Schema.Types.Mixed,
     default: () => ({

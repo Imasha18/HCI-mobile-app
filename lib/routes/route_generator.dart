@@ -83,7 +83,12 @@ class RouteGenerator {
       AppRoutes.riderDashboard => const RiderDashboardScreen(),
       AppRoutes.deliveryRequests => const DeliveryRequestsScreen(),
       AppRoutes.deliveryRequestDetails => DeliveryRequestDetailsScreen(
-          deliveryId: settings.arguments as String? ?? '',
+          deliveryId: settings.arguments is Map
+              ? ((settings.arguments as Map)['_id'] ?? (settings.arguments as Map)['id'] ?? '').toString()
+              : (settings.arguments?.toString() ?? ''),
+          initialDelivery: settings.arguments is Map
+              ? Map<String, dynamic>.from(settings.arguments as Map)
+              : null,
         ),
       AppRoutes.acceptDelivery => AcceptDeliveryScreen(
           delivery: settings.arguments is Map
@@ -123,7 +128,9 @@ class RouteGenerator {
         ),
       AppRoutes.cookOrders => const CookOrdersScreen(),
       AppRoutes.cookOrderDetails => OrderDetailsScreen(
-          orderId: settings.arguments as String,
+          orderId: settings.arguments is Map
+              ? ((settings.arguments as Map)['_id'] ?? (settings.arguments as Map)['id'] ?? '').toString()
+              : (settings.arguments?.toString() ?? ''),
         ),
       AppRoutes.updateOrderStatus => UpdateOrderStatusScreen(
           order: settings.arguments as Map<String, dynamic>,

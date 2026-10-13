@@ -24,13 +24,14 @@ class CookOrderState {
     bool clearError = false,
     List<dynamic>? orders,
     Map<String, dynamic>? selectedOrder,
+    bool clearSelectedOrder = false,
     String? selectedFilter,
   }) {
     return CookOrderState(
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       orders: orders ?? this.orders,
-      selectedOrder: selectedOrder ?? this.selectedOrder,
+      selectedOrder: clearSelectedOrder ? null : (selectedOrder ?? this.selectedOrder),
       selectedFilter: selectedFilter ?? this.selectedFilter,
     );
   }
@@ -68,7 +69,16 @@ class CookOrderNotifier extends StateNotifier<CookOrderState> {
   }
 
   Future<Map<String, dynamic>?> fetchOrderDetails(String id) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    if (id.trim().isEmpty) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Order id is missing',
+        clearSelectedOrder: true,
+      );
+      return null;
+    }
+
+    state = state.copyWith(isLoading: true, clearError: true, clearSelectedOrder: true);
     try {
       final response = await _client.dio.get('/cook/orders/$id');
       final data = response.data['data'] as Map<String, dynamic>;
@@ -117,7 +127,11 @@ class CookOrderNotifier extends StateNotifier<CookOrderState> {
       await fetchOrders();
       await fetchOrderDetails(id);
       return true;
-    } catch (_) {
+    } on DioException catch (e) {
+      state = state.copyWith(error: ApiClient.messageFrom(e));
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to update order status: $e');
       return false;
     }
   }

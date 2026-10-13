@@ -16,6 +16,24 @@ class CookDashboardScreen extends ConsumerStatefulWidget {
 class _CookDashboardScreenState extends ConsumerState<CookDashboardScreen> {
   int _currentNavIndex = 0;
 
+  Map<String, dynamic>? _safeMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  String _safeText(dynamic value, [String fallback = '']) {
+    if (value == null) return fallback;
+    if (value is String) return value.trim().isEmpty ? fallback : value;
+    if (value is num || value is bool) return value.toString();
+    final map = _safeMap(value);
+    if (map != null) {
+      final objectId = map[r'$oid'] ?? map['_id'] ?? map['id'] ?? map['value'];
+      return objectId == null ? fallback : _safeText(objectId, fallback);
+    }
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -390,17 +408,17 @@ class _CookDashboardScreenState extends ConsumerState<CookDashboardScreen> {
               ),
             ] else ...[
               ...recentOrders.map((order) {
-                final customer = order['customer'] as Map<String, dynamic>?;
-                final customerName = customer?['name'] as String? ?? 'Customer';
-                final items = (order['items'] as List<dynamic>?) ?? [];
-                final firstItem = items.isNotEmpty ? items[0] as Map<String, dynamic>? : null;
-                final mealName = firstItem?['name'] as String? ??
-                    (firstItem?['meal'] as Map<String, dynamic>?)?['name'] as String? ??
-                    'Special Meal';
+                final orderMap = _safeMap(order) ?? <String, dynamic>{};
+                final customer = _safeMap(orderMap['customer']);
+                final customerName = _safeText(customer?['name'], 'Customer');
+                final items = (orderMap['items'] as List<dynamic>?) ?? [];
+                final firstItem = items.isNotEmpty ? _safeMap(items[0]) : null;
+                final mealObj = _safeMap(firstItem?['meal']);
+                final mealName = _safeText(firstItem?['name'], _safeText(mealObj?['name'], 'Special Meal'));
                 final quantity = firstItem?['quantity'] as int? ?? 1;
-                final price = (order['total'] as num?)?.toDouble() ?? 0.0;
-                final status = (order['status'] as String?) ?? 'Order Received';
-                final orderId = order['_id'] as String? ?? '';
+                final price = (orderMap['total'] as num?)?.toDouble() ?? 0.0;
+                final status = _safeText(orderMap['status'], 'Order Received');
+                final orderId = _safeText(orderMap['_id']);
 
                 return _RecentOrderCard(
                   customerName: customerName,

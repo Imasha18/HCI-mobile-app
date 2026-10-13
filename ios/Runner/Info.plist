@@ -39,6 +39,10 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>HomeBite needs camera access so riders can take a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HomeBite needs photo library access so riders can upload a profile photo.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

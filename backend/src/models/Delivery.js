@@ -30,6 +30,7 @@ const deliverySchema = new mongoose.Schema({
   proofImageUrl: String,
   notes: String,
   cancellationReason: String,
+  riderHistoryDeletedAt: Date,
 }, { timestamps: true });
 
 deliverySchema.pre('save', function (next) {

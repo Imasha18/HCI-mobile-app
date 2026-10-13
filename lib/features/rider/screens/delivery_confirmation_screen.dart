@@ -323,13 +323,14 @@ class _DeliveryConfirmationScreenState
                             );
 
                         if (!mounted) return;
-                        setState(() => _isProcessing = false);
 
                         if (success) {
                           // Refresh rider dashboard & earnings
-                          ref.read(riderProvider.notifier).fetchDashboard();
-                          ref.read(earningsProvider.notifier).fetchEarnings();
-                          ref.read(earningsProvider.notifier).fetchHistory();
+                          await ref.read(riderProvider.notifier).fetchDashboard(forceRefresh: true);
+                          await ref.read(earningsProvider.notifier).fetchEarnings();
+                          await ref.read(earningsProvider.notifier).fetchHistory();
+
+                          if (!mounted) return;
 
                           scaffold.showSnackBar(
                             const SnackBar(
@@ -343,6 +344,7 @@ class _DeliveryConfirmationScreenState
                             (route) => false,
                           );
                         } else {
+                          setState(() => _isProcessing = false);
                           scaffold.showSnackBar(
                             const SnackBar(content: Text('Failed to confirm delivery. Please retry.')),
                           );

@@ -51,6 +51,8 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
     final pickupAddr = pickupLoc?['address'] ?? cook?['address'] ?? '45/2 Galle Road, Colombo 03';
 
     final items = (order?['items'] as List<dynamic>?) ?? [];
+    final itemCount = items.isNotEmpty ? items.length : 2;
+    final allItemsChecked = _checkedItems.length >= itemCount;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FBF9),
@@ -169,6 +171,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
           const SizedBox(height: 20),
 
           // Order Items Checklist
+          if (_reachedCook) ...[
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -254,6 +257,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
           ),
 
           const SizedBox(height: 24),
+          ],
 
           // Reached Cook Toggle Button
           if (!_reachedCook)
@@ -279,7 +283,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
               ),
             ),
 
-          if (_reachedCook) ...[
+          if (_reachedCook && allItemsChecked) ...[
             SizedBox(
               width: double.infinity,
               height: 54,
@@ -292,9 +296,10 @@ class _PickupScreenState extends ConsumerState<PickupScreen> {
                         final success = await ref.read(deliveryProvider.notifier).pickupDelivery(deliveryId);
                         if (!mounted) return;
                         if (success) {
+                          final updatedDelivery = ref.read(deliveryProvider).activeDelivery ?? delivery;
                           nav.pushReplacementNamed(
                             AppRoutes.riderInTransit,
-                            arguments: delivery,
+                            arguments: updatedDelivery,
                           );
                         } else {
                           setState(() => _isProcessing = false);

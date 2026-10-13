@@ -17,14 +17,27 @@ class InTransitScreen extends ConsumerStatefulWidget {
 
 class _InTransitScreenState extends ConsumerState<InTransitScreen> {
   int _currentStepIndex = 1; // 0: Picked Up, 1: On Route, 2: Near Customer, 3: Delivered
+  late Map<String, dynamic> _delivery;
 
   @override
   void initState() {
     super.initState();
+    _delivery = Map<String, dynamic>.from(widget.delivery);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final id = (widget.delivery['_id'] ?? widget.delivery['id'] ?? '').toString();
+      final id = (_delivery['_id'] ?? _delivery['id'] ?? '').toString();
       if (id.isNotEmpty) {
-        ref.read(deliveryProvider.notifier).startDelivery(id);
+        final status = (_delivery['status'] as String? ?? '').toUpperCase();
+        final future = status == 'IN_TRANSIT'
+            ? ref.read(deliveryProvider.notifier).fetchDeliveryDetails(id)
+            : ref.read(deliveryProvider.notifier).startDelivery(id).then((success) {
+                if (!success) return null;
+                return ref.read(deliveryProvider).activeDelivery;
+              });
+        future.then((fresh) {
+          if (fresh != null && mounted) {
+            setState(() => _delivery = fresh);
+          }
+        });
       }
       ref.read(locationProvider.notifier).startLiveTracking();
     });
@@ -33,7 +46,7 @@ class _InTransitScreenState extends ConsumerState<InTransitScreen> {
   @override
   Widget build(BuildContext context) {
     final locationState = ref.watch(locationProvider);
-    final delivery = widget.delivery;
+    final delivery = _delivery;
     final order = RiderTheme.safeMap(delivery['orderId']);
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
     final orderShort = orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
@@ -353,7 +366,7 @@ class _InTransitScreenState extends ConsumerState<InTransitScreen> {
                   Navigator.pushReplacementNamed(
                     context,
                     AppRoutes.riderDeliveryConfirmation,
-                    arguments: delivery,
+                    arguments: _delivery,
                   );
                 },
                 icon: const Icon(Icons.check_circle_rounded, size: 22),

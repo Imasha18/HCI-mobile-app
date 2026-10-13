@@ -2,7 +2,27 @@ const Delivery = require('../models/Delivery');
 const Order = require('../models/Order');
 const Earning = require('../models/Earning');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 const { sendSuccess } = require('../utils/apiResponse');
+
+function hasCurrentPayoutAccount(rider) {
+  if (!rider) return false;
+
+  const payoutAccounts = Array.isArray(rider.payoutAccounts) ? rider.payoutAccounts : [];
+  if (payoutAccounts.length > 0) {
+    const currentId = String(rider.currentPayoutAccountId || '').trim();
+    return Boolean(
+      currentId &&
+      payoutAccounts.some((account) =>
+        String(account.accountId || '').trim() === currentId &&
+        String(account.accountNumber || '').trim()
+      )
+    );
+  }
+
+  return Boolean(String(rider.bankDetails?.accountNumber || '').trim());
+}
 
 // GET /api/deliveries/available
 async function getAvailableDeliveries(req, res) {
@@ -20,9 +40,9 @@ async function getAvailableDeliveries(req, res) {
     .populate('cookId', 'name kitchenName phone address profileImage')
     .populate('customerId', 'name phone address');
 
-  // If there are active orders without an available delivery doc, create them dynamically
+  // If there are ready orders without an available delivery doc, create them dynamically
   const activeOrders = await Order.find({
-    status: { $in: ['Order Received', 'Pending', 'Placed', 'Accepted', 'Preparing', 'Ready For Pickup'] },
+    status: { $in: ['Ready For Pickup', 'Ready'] },
     rider: { $in: [null, undefined] },
   })
     .populate('cook', 'name kitchenName phone address profileImage')
@@ -74,6 +94,10 @@ async function getAvailableDeliveries(req, res) {
 
 // GET /api/deliveries/:id
 async function getDeliveryById(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ success: false, message: 'Invalid delivery id' });
+  }
+
   const delivery = await Delivery.findById(req.params.id)
     .populate({
       path: 'orderId',
@@ -99,8 +123,29 @@ async function acceptDelivery(req, res) {
   const delivery = await Delivery.findById(req.params.id);
   if (!delivery) return res.status(404).json({ success: false, message: 'Delivery not found' });
 
+  const rider = await User.findById(req.user.id).select('bankDetails payoutAccounts currentPayoutAccountId');
+  if (!hasCurrentPayoutAccount(rider)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Add and select a payout bank account before accepting deliveries.',
+    });
+  }
+
   if (delivery.status !== 'AVAILABLE' && delivery.rider?.toString() !== req.user.id) {
     return res.status(400).json({ success: false, message: 'Delivery has already been assigned to another rider' });
+  }
+
+  const existingActive = await Delivery.findOne({
+    _id: { $ne: delivery._id },
+    $or: [{ rider: req.user.id }, { riderId: req.user.id }],
+    status: { $in: ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'] },
+  });
+
+  if (existingActive) {
+    return res.status(400).json({
+      success: false,
+      message: 'Complete your current active delivery before confirming another request.',
+    });
   }
 
   delivery.rider = req.user.id;

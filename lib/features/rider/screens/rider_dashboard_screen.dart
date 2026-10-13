@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
+import '../providers/delivery_provider.dart';
 import '../providers/rider_provider.dart';
 import '../theme/rider_theme.dart';
 import 'delivery_requests_screen.dart';
@@ -24,6 +25,7 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(riderProvider.notifier).fetchDashboard();
+      ref.read(deliveryProvider.notifier).fetchAvailableDeliveries();
     });
   }
 
@@ -35,13 +37,20 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(riderProvider);
+    final deliveryState = ref.watch(deliveryProvider);
     final dashboard = state.dashboardData;
     final riderInfo = (dashboard?['rider'] as Map<String, dynamic>?) ?? state.rider;
     final statistics = dashboard?['statistics'] as Map<String, dynamic>?;
-    final currentDelivery = dashboard?['currentDelivery'] as Map<String, dynamic>?;
+    final dashboardDelivery = RiderTheme.safeMap(dashboard?['currentDelivery']);
+    final currentDelivery = dashboardDelivery ?? deliveryState.activeDelivery;
+    final nextDeliveryRequest = _nextQueuedDelivery(deliveryState.availableDeliveries);
+    final activeSectionDelivery = currentDelivery ?? nextDeliveryRequest;
+    final hasActiveDelivery = currentDelivery != null;
 
     final riderName = riderInfo?['name'] as String? ?? state.rider?['name'] as String? ?? 'Delivery Rider';
-    final profileImage = riderInfo?['profileImage'] as String? ?? state.rider?['profileImage'] as String?;
+    final profileImage = RiderTheme.resolveImageUrl(
+      riderInfo?['profileImage'] as String? ?? state.rider?['profileImage'] as String?,
+    );
     final vehicle = (riderInfo?['vehicleDetails'] as Map<String, dynamic>?) ?? (state.rider?['vehicleDetails'] as Map<String, dynamic>?);
     final vehicleModel = vehicle?['model'] ?? vehicle?['type'] ?? 'Motorbike';
     final plateNumber = vehicle?['plateNumber'] as String? ?? '';
@@ -67,7 +76,10 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
             SafeArea(
               child: RefreshIndicator(
                 color: RiderTheme.primaryGreen,
-                onRefresh: () => ref.read(riderProvider.notifier).fetchDashboard(forceRefresh: true),
+                onRefresh: () async {
+                  await ref.read(riderProvider.notifier).fetchDashboard(forceRefresh: true);
+                  await ref.read(deliveryProvider.notifier).fetchAvailableDeliveries();
+                },
                 child: SingleChildScrollView(
                   key: const PageStorageKey<String>('rider_dashboard_scroll'),
                   physics: const AlwaysScrollableScrollPhysics(
@@ -94,10 +106,10 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
                                 CircleAvatar(
                                   radius: 26,
                                   backgroundColor: Colors.white,
-                                  backgroundImage: profileImage != null && profileImage.isNotEmpty
+                                  backgroundImage: profileImage.isNotEmpty
                                       ? CachedNetworkImageProvider(profileImage)
                                       : null,
-                            child: profileImage == null || profileImage.isEmpty
+                            child: profileImage.isEmpty
                                 ? const Icon(Icons.person, color: RiderTheme.primaryGreen, size: 28)
                                 : null,
                           ),
@@ -276,17 +288,23 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
                               color: RiderTheme.textDark,
                             ),
                           ),
-                          if (currentDelivery != null)
+                          if (activeSectionDelivery != null)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: RiderTheme.getStatusBgColor(currentDelivery['status'] ?? 'ACCEPTED'),
+                                color: hasActiveDelivery
+                                    ? RiderTheme.getStatusBgColor(activeSectionDelivery['status'] ?? 'ACCEPTED')
+                                    : RiderTheme.statusBlueBg,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                (currentDelivery['status'] as String? ?? 'ACCEPTED').replaceAll('_', ' '),
+                                hasActiveDelivery
+                                    ? (activeSectionDelivery['status'] as String? ?? 'ACCEPTED').replaceAll('_', ' ')
+                                    : 'NEXT REQUEST',
                                 style: TextStyle(
-                                  color: RiderTheme.getStatusColor(currentDelivery['status'] ?? 'ACCEPTED'),
+                                  color: hasActiveDelivery
+                                      ? RiderTheme.getStatusColor(activeSectionDelivery['status'] ?? 'ACCEPTED')
+                                      : RiderTheme.statusBlue,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
@@ -296,8 +314,11 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      if (currentDelivery != null)
-                        _CurrentDeliveryCard(delivery: currentDelivery)
+                      if (activeSectionDelivery != null)
+                        _CurrentDeliveryCard(
+                          delivery: activeSectionDelivery,
+                          isActiveDelivery: hasActiveDelivery,
+                        )
                       else
                         Container(
                           width: double.infinity,
@@ -450,6 +471,24 @@ class _RiderDashboardScreenState extends ConsumerState<RiderDashboardScreen> {
   }
 }
 
+Map<String, dynamic>? _nextQueuedDelivery(List<dynamic> deliveries) {
+  final available = deliveries
+      .map(RiderTheme.safeMap)
+      .whereType<Map<String, dynamic>>()
+      .where((delivery) => (delivery['status']?.toString().toUpperCase() ?? 'AVAILABLE') == 'AVAILABLE')
+      .toList();
+
+  if (available.isEmpty) return null;
+
+  available.sort((a, b) {
+    final aTime = DateTime.tryParse(a['createdAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bTime = DateTime.tryParse(b['createdAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return aTime.compareTo(bTime);
+  });
+
+  return available.first;
+}
+
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -508,13 +547,17 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _CurrentDeliveryCard extends StatelessWidget {
+class _CurrentDeliveryCard extends ConsumerWidget {
   final Map<String, dynamic> delivery;
+  final bool isActiveDelivery;
 
-  const _CurrentDeliveryCard({required this.delivery});
+  const _CurrentDeliveryCard({
+    required this.delivery,
+    required this.isActiveDelivery,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final deliveryId = (delivery['_id'] ?? delivery['id'] ?? '').toString();
     final order = delivery['orderId'] as Map<String, dynamic>?;
     final orderId = (order?['_id'] ?? delivery['orderId'] ?? '').toString();
@@ -530,6 +573,26 @@ class _CurrentDeliveryCard extends StatelessWidget {
 
     final deliveryFee = (delivery['deliveryFee'] as num?)?.toDouble() ?? 450.0;
     final status = (delivery['status'] as String? ?? 'ACCEPTED').toUpperCase();
+    final title = isActiveDelivery ? 'Order #$orderShort' : 'Next request · Order #$orderShort';
+
+    Future<bool> ensureCurrentPayoutAccount() async {
+      var rider = ref.read(riderProvider).rider;
+      if (rider == null) {
+        await ref.read(riderProvider.notifier).fetchProfile(forceRefresh: true);
+        rider = ref.read(riderProvider).rider;
+      }
+
+      if (RiderTheme.hasCurrentPayoutAccount(rider)) return true;
+      if (!context.mounted) return false;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add and select a payout bank account before accepting deliveries.'),
+        ),
+      );
+      Navigator.pushNamed(context, AppRoutes.riderProfile);
+      return false;
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -545,9 +608,13 @@ class _CurrentDeliveryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Order #$orderShort',
+              Expanded(
+                child: Text(
+                title,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Text(
                 'Rs. ${deliveryFee.toStringAsFixed(2)}',
@@ -639,7 +706,39 @@ class _CurrentDeliveryCard extends StatelessWidget {
             height: 48,
             child: ElevatedButton.icon(
               onPressed: () {
-                if (status == 'ACCEPTED') {
+                if (!isActiveDelivery) {
+                  ensureCurrentPayoutAccount().then((canAccept) {
+                    if (!canAccept || !context.mounted) return;
+                    ref.read(deliveryProvider.notifier).acceptDelivery(deliveryId).then((success) async {
+                    if (!context.mounted) return;
+                    if (success) {
+                      await ref.read(riderProvider.notifier).fetchDashboard(forceRefresh: true);
+                      await ref.read(deliveryProvider.notifier).fetchAvailableDeliveries();
+                      if (!context.mounted) return;
+                      final acceptedDelivery = ref.read(deliveryProvider).activeDelivery ?? delivery;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          backgroundColor: RiderTheme.primaryGreen,
+                          content: Text('Delivery confirmed. Start pickup from the cook.'),
+                        ),
+                      );
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.riderPickup,
+                        arguments: acceptedDelivery,
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            ref.read(deliveryProvider).error ?? 'Unable to confirm this delivery request.',
+                          ),
+                        ),
+                      );
+                    }
+                  });
+                  });
+                } else if (status == 'ACCEPTED') {
                   Navigator.pushNamed(context, AppRoutes.riderPickup, arguments: delivery);
                 } else if (status == 'PICKED_UP' || status == 'IN_TRANSIT') {
                   Navigator.pushNamed(context, AppRoutes.riderInTransit, arguments: delivery);
@@ -650,11 +749,15 @@ class _CurrentDeliveryCard extends StatelessWidget {
               icon: Icon(
                 status == 'ACCEPTED'
                     ? Icons.store_rounded
-                    : (status == 'PICKED_UP' ? Icons.navigation_rounded : Icons.check_circle_outline_rounded),
+                    : (!isActiveDelivery
+                        ? Icons.check_circle_outline_rounded
+                        : (status == 'PICKED_UP' ? Icons.navigation_rounded : Icons.check_circle_outline_rounded)),
                 size: 20,
               ),
               label: Text(
-                status == 'ACCEPTED'
+                !isActiveDelivery
+                    ? 'Confirm Delivery'
+                    : status == 'ACCEPTED'
                     ? 'Go to Pickup Location'
                     : (status == 'PICKED_UP' ? 'Start Transit to Customer' : 'Confirm Delivery'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
