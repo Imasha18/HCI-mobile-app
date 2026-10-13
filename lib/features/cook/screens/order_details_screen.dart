@@ -16,6 +16,24 @@ class OrderDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
+  Map<String, dynamic>? _safeMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  String _safeText(dynamic value, [String fallback = '']) {
+    if (value == null) return fallback;
+    if (value is String) return value.trim().isEmpty ? fallback : value;
+    if (value is num || value is bool) return value.toString();
+    final map = _safeMap(value);
+    if (map != null) {
+      final objectId = map[r'$oid'] ?? map['_id'] ?? map['id'] ?? map['value'];
+      return objectId == null ? fallback : _safeText(objectId, fallback);
+    }
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,26 +63,26 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
       );
     }
 
-    final orderId = order['_id'] as String? ?? widget.orderId;
+    final orderId = _safeText(order['_id'], widget.orderId);
     final shortId = orderId.length > 6 ? orderId.substring(orderId.length - 6).toUpperCase() : orderId;
-    final status = (order['status'] as String?) ?? 'Order Received';
+    final status = _safeText(order['status'], 'Order Received');
     final total = (order['total'] as num?)?.toDouble() ?? 0.0;
-    final customer = order['customer'] as Map<String, dynamic>?;
-    final customerName = customer?['name'] as String? ?? 'Valued Customer';
-    final customerPhone = customer?['phone'] as String? ?? '+1 555-019-2834';
-    final deliveryAddress = (order['deliveryAddress'] as String?) ?? 'Brooklyn Heights, NY';
-    final orderNotes = (order['orderNotes'] as String?) ?? 'No special requests provided.';
+    final customer = _safeMap(order['customer']);
+    final customerName = _safeText(customer?['name'], 'Valued Customer');
+    final customerPhone = _safeText(customer?['phone'], '+1 555-019-2834');
+    final deliveryAddress = _safeText(order['deliveryAddress'], 'Brooklyn Heights, NY');
+    final orderNotes = _safeText(order['orderNotes'], 'No special requests provided.');
     final items = (order['items'] as List<dynamic>?) ?? [];
-    final createdAt = order['createdAt'] as String?;
-    final timeDisplay = createdAt != null && createdAt.length >= 16
+    final createdAt = _safeText(order['createdAt']);
+    final timeDisplay = createdAt.length >= 16
         ? '${createdAt.substring(11, 16)} • ${createdAt.substring(0, 10)}'
         : 'Recently';
 
-    final rider = order['rider'] as Map<String, dynamic>?;
-    final riderName = rider?['name'] as String?;
-    final riderPhone = rider?['phone'] as String?;
-    final vehicle = rider?['vehicleDetails'] as Map<String, dynamic>?;
-    final vehicleModel = vehicle?['model'] as String? ?? vehicle?['type'] as String?;
+    final rider = _safeMap(order['rider']);
+    final riderName = rider == null ? null : _safeText(rider['name']);
+    final riderPhone = rider == null ? null : _safeText(rider['phone']);
+    final vehicle = _safeMap(rider?['vehicleDetails']);
+    final vehicleModel = vehicle == null ? null : _safeText(vehicle['model'], _safeText(vehicle['type']));
 
     final isReceived = status == 'Order Received' || status == 'pending';
 
@@ -287,13 +305,14 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  ...items.map((item) {
+                  ...items.map((rawItem) {
+                    final item = _safeMap(rawItem) ?? <String, dynamic>{};
                     final qty = item['quantity'] ?? 1;
                     final price = (item['price'] as num?)?.toDouble() ?? 0.0;
-                    final mealObj = item['meal'] as Map<String, dynamic>?;
-                    final name = item['name'] ?? mealObj?['name'] ?? 'Meal Item';
-                    final imageUrl = mealObj?['imageUrl'] as String? ?? mealObj?['image'] as String? ?? '';
-                    final category = mealObj?['category'] as String? ?? 'Fresh';
+                    final mealObj = _safeMap(item['meal']);
+                    final name = _safeText(item['name'], _safeText(mealObj?['name'], 'Meal Item'));
+                    final imageUrl = _safeText(mealObj?['imageUrl'], _safeText(mealObj?['image']));
+                    final category = _safeText(mealObj?['category'], 'Fresh');
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),

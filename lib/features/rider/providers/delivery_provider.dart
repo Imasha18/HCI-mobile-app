@@ -25,13 +25,19 @@ class DeliveryState {
     List<dynamic>? availableDeliveries,
     Map<String, dynamic>? selectedDelivery,
     Map<String, dynamic>? activeDelivery,
+    bool clearSelectedDelivery = false,
+    bool clearActiveDelivery = false,
   }) {
     return DeliveryState(
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       availableDeliveries: availableDeliveries ?? this.availableDeliveries,
-      selectedDelivery: selectedDelivery ?? this.selectedDelivery,
-      activeDelivery: activeDelivery ?? this.activeDelivery,
+      selectedDelivery: clearSelectedDelivery
+          ? null
+          : (selectedDelivery ?? this.selectedDelivery),
+      activeDelivery: clearActiveDelivery
+          ? null
+          : (activeDelivery ?? this.activeDelivery),
     );
   }
 }
@@ -66,10 +72,21 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
   }
 
   Future<Map<String, dynamic>?> fetchDeliveryDetails(String id) async {
+    if (id.trim().isEmpty) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Delivery request id is missing',
+        clearSelectedDelivery: true,
+      );
+      return null;
+    }
+
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final response = await _client.dio.get('/deliveries/$id');
       final data = response.data['data'] as Map<String, dynamic>;
+      _client.invalidateCache('/rider');
+      _client.invalidateCache('/rider/deliveries');
       state = state.copyWith(
         isLoading: false,
         selectedDelivery: data,
@@ -182,9 +199,10 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       final data = response.data['data'] as Map<String, dynamic>;
       state = state.copyWith(
         isLoading: false,
-        activeDelivery: null,
         selectedDelivery: data,
+        clearActiveDelivery: true,
       );
+      await fetchAvailableDeliveries();
       return true;
     } on DioException catch (e) {
       state = state.copyWith(
@@ -226,7 +244,9 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       state = state.copyWith(
         isLoading: false,
         selectedDelivery: data,
-        activeDelivery: state.activeDelivery?['_id'] == id ? data : state.activeDelivery,
+        activeDelivery: (state.activeDelivery?['_id'] ?? state.activeDelivery?['id'])?.toString() == id
+            ? data
+            : state.activeDelivery,
       );
       return true;
     } on DioException catch (e) {
@@ -250,7 +270,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       state = state.copyWith(
         isLoading: false,
         selectedDelivery: data,
-        activeDelivery: state.activeDelivery?['_id'] == id ? null : state.activeDelivery,
+        clearActiveDelivery: (state.activeDelivery?['_id'] ?? state.activeDelivery?['id'])?.toString() == id,
       );
       await fetchAvailableDeliveries();
       return true;
@@ -269,7 +289,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       await _client.dio.delete('/deliveries/$id');
       state = state.copyWith(
         isLoading: false,
-        activeDelivery: state.activeDelivery?['_id'] == id ? null : state.activeDelivery,
+        clearActiveDelivery: (state.activeDelivery?['_id'] ?? state.activeDelivery?['id'])?.toString() == id,
       );
       await fetchAvailableDeliveries();
       return true;

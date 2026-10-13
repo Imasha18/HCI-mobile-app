@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_routes.dart';
 import '../../../core/widgets/skeleton_loaders.dart';
 import '../providers/delivery_provider.dart';
+import '../providers/rider_provider.dart';
 import '../theme/rider_theme.dart';
 
 class DeliveryRequestsScreen extends ConsumerStatefulWidget {
@@ -16,6 +17,25 @@ class DeliveryRequestsScreen extends ConsumerStatefulWidget {
 class _DeliveryRequestsScreenState extends ConsumerState<DeliveryRequestsScreen> {
   final Set<String> _dismissedIds = {};
   bool _accepting = false;
+
+  Future<bool> _ensureCurrentPayoutAccount() async {
+    var rider = ref.read(riderProvider).rider;
+    if (rider == null) {
+      await ref.read(riderProvider.notifier).fetchProfile(forceRefresh: true);
+      rider = ref.read(riderProvider).rider;
+    }
+
+    if (RiderTheme.hasCurrentPayoutAccount(rider)) return true;
+    if (!mounted) return false;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Add and select a payout bank account before accepting deliveries.'),
+      ),
+    );
+    Navigator.pushNamed(context, AppRoutes.riderProfile);
+    return false;
+  }
 
   @override
   void initState() {
@@ -126,13 +146,32 @@ class _DeliveryRequestsScreenState extends ConsumerState<DeliveryRequestsScreen>
                             if (_accepting) return;
                             _accepting = true;
                             try {
+                              final canAccept = await _ensureCurrentPayoutAccount();
+                              if (!canAccept) return;
+
                               final id = (del['_id'] ?? del['id'] ?? '').toString();
                               final success = await ref.read(deliveryProvider.notifier).acceptDelivery(id);
                               if (success && context.mounted) {
-                                Navigator.pushReplacementNamed(
+                                final acceptedDelivery = ref.read(deliveryProvider).activeDelivery ?? del;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: RiderTheme.primaryGreen,
+                                    content: Text('Delivery confirmed. Start pickup from the cook.'),
+                                  ),
+                                );
+                                Navigator.pushNamed(
                                   context,
-                                  AppRoutes.acceptDelivery,
-                                  arguments: del,
+                                  AppRoutes.riderPickup,
+                                  arguments: acceptedDelivery,
+                                );
+                              } else if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      ref.read(deliveryProvider).error ??
+                                          'Unable to confirm this delivery request.',
+                                    ),
+                                  ),
                                 );
                               }
                             } finally {
@@ -191,7 +230,7 @@ class _DeliveryCard extends StatelessWidget {
           Navigator.pushNamed(
             context,
             AppRoutes.deliveryRequestDetails,
-            arguments: deliveryId,
+            arguments: delivery,
           );
         },
         child: Padding(

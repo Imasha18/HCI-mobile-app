@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../config/api_config.dart';
+
 class RiderTheme {
   // Brand Colors
   static const Color primaryGreen = Color(0xFF20C957);
@@ -103,5 +105,33 @@ class RiderTheme {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
     return null;
+  }
+
+  static bool hasCurrentPayoutAccount(Map<String, dynamic>? rider) {
+    if (rider == null) return false;
+
+    final rawAccounts = rider['payoutAccounts'];
+    if (rawAccounts is List && rawAccounts.isNotEmpty) {
+      final currentId = rider['currentPayoutAccountId']?.toString().trim() ?? '';
+      return currentId.isNotEmpty &&
+          rawAccounts.whereType<Map>().any((account) {
+            final accountId = account['accountId']?.toString().trim() ?? '';
+            final accountNumber = account['accountNumber']?.toString().trim() ?? '';
+            return accountId == currentId && accountNumber.isNotEmpty;
+          });
+    }
+
+    final bankDetails = safeMap(rider['bankDetails']);
+    return (bankDetails?['accountNumber']?.toString().trim() ?? '').isNotEmpty;
+  }
+
+  static String resolveImageUrl(String? imageUrl) {
+    final raw = imageUrl?.trim() ?? '';
+    if (raw.isEmpty || raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw;
+    }
+
+    final origin = ApiConfig.serverOrigin;
+    return raw.startsWith('/') ? '$origin$raw' : '$origin/$raw';
   }
 }

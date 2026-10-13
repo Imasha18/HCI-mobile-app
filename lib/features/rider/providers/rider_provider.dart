@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -287,9 +289,15 @@ class RiderNotifier extends StateNotifier<RiderState> {
       if (response.statusCode == 200) {
         final data = response.data['data'] as Map<String, dynamic>;
         final riderInfo = data['rider'] as Map<String, dynamic>?;
+        final mergedRider = riderInfo == null
+            ? state.rider
+            : <String, dynamic>{
+                ...?state.rider,
+                ...riderInfo,
+              };
         state = state.copyWith(
           dashboardData: data,
-          rider: riderInfo ?? state.rider,
+          rider: mergedRider,
           isOnline: riderInfo?['isOnline'] as bool? ?? state.isOnline,
         );
       }
@@ -360,6 +368,55 @@ class RiderNotifier extends StateNotifier<RiderState> {
         isLoading: false,
         error: msg,
       );
+      return {'success': false, 'message': msg};
+    }
+  }
+
+  Future<Map<String, dynamic>> updatePersonalInfo({
+    required String name,
+    required String phone,
+    Uint8List? profileImageBytes,
+    String? profileImageName,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      dynamic payload = {
+        'name': name.trim(),
+        'phone': phone.trim(),
+      };
+
+      if (profileImageBytes != null) {
+        payload = FormData.fromMap({
+          'name': name.trim(),
+          'phone': phone.trim(),
+          'profileImage': MultipartFile.fromBytes(
+            profileImageBytes,
+            filename: profileImageName?.trim().isNotEmpty == true ? profileImageName!.trim() : 'rider-profile.jpg',
+          ),
+        });
+      }
+
+      final response = await _client.dio.put('/rider/profile', data: payload);
+      final updatedRider = response.data['data'] as Map<String, dynamic>;
+      _client.clearCache('/rider');
+      state = state.copyWith(
+        isLoading: false,
+        rider: updatedRider,
+        isOnline: updatedRider['isOnline'] as bool? ?? state.isOnline,
+      );
+      await fetchDashboard(forceRefresh: true);
+      return {
+        'success': true,
+        'message': response.data['message']?.toString() ?? 'Profile updated successfully',
+        'data': updatedRider,
+      };
+    } on DioException catch (e) {
+      final msg = ApiClient.messageFrom(e);
+      state = state.copyWith(isLoading: false, error: msg);
+      return {'success': false, 'message': msg};
+    } catch (e) {
+      final msg = 'Failed to update profile: $e';
+      state = state.copyWith(isLoading: false, error: msg);
       return {'success': false, 'message': msg};
     }
   }

@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_routes.dart';
 import '../providers/delivery_provider.dart';
+import '../providers/rider_provider.dart';
 import '../theme/rider_theme.dart';
 
 class DeliveryRequestDetailsScreen extends ConsumerStatefulWidget {
   final String deliveryId;
+  final Map<String, dynamic>? initialDelivery;
 
-  const DeliveryRequestDetailsScreen({super.key, required this.deliveryId});
+  const DeliveryRequestDetailsScreen({
+    super.key,
+    required this.deliveryId,
+    this.initialDelivery,
+  });
 
   @override
   ConsumerState<DeliveryRequestDetailsScreen> createState() => _DeliveryRequestDetailsScreenState();
@@ -18,17 +24,45 @@ class _DeliveryRequestDetailsScreenState extends ConsumerState<DeliveryRequestDe
   Map<String, dynamic>? _delivery;
   bool _isLoading = true;
 
+  Future<bool> _ensureCurrentPayoutAccount() async {
+    var rider = ref.read(riderProvider).rider;
+    if (rider == null) {
+      await ref.read(riderProvider.notifier).fetchProfile(forceRefresh: true);
+      rider = ref.read(riderProvider).rider;
+    }
+
+    if (RiderTheme.hasCurrentPayoutAccount(rider)) return true;
+    if (!mounted) return false;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Add and select a payout bank account before accepting deliveries.'),
+      ),
+    );
+    Navigator.pushNamed(context, AppRoutes.riderProfile);
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
+    _delivery = widget.initialDelivery;
+    _isLoading = widget.initialDelivery == null;
     _loadDetails();
   }
 
   Future<void> _loadDetails() async {
+    if (widget.deliveryId.trim().isEmpty) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
+
     final data = await ref.read(deliveryProvider.notifier).fetchDeliveryDetails(widget.deliveryId);
     if (mounted) {
       setState(() {
-        _delivery = data;
+        _delivery = data ?? _delivery;
         _isLoading = false;
       });
     }
@@ -339,12 +373,31 @@ class _DeliveryRequestDetailsScreenState extends ConsumerState<DeliveryRequestDe
             height: 54,
             child: ElevatedButton.icon(
               onPressed: () async {
+                final canAccept = await _ensureCurrentPayoutAccount();
+                if (!canAccept) return;
+
                 final success = await ref.read(deliveryProvider.notifier).acceptDelivery(widget.deliveryId);
                 if (success && context.mounted) {
+                  final acceptedDelivery = ref.read(deliveryProvider).activeDelivery ?? delivery;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: RiderTheme.primaryGreen,
+                      content: Text('Delivery confirmed. Start pickup from the cook.'),
+                    ),
+                  );
                   Navigator.pushReplacementNamed(
                     context,
-                    AppRoutes.acceptDelivery,
-                    arguments: delivery,
+                    AppRoutes.riderPickup,
+                    arguments: acceptedDelivery,
+                  );
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        ref.read(deliveryProvider).error ??
+                            'Unable to confirm this delivery request.',
+                      ),
+                    ),
                   );
                 }
               },

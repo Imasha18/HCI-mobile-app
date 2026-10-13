@@ -8,7 +8,8 @@ class RiderNotificationsScreen extends ConsumerStatefulWidget {
   const RiderNotificationsScreen({super.key});
 
   @override
-  ConsumerState<RiderNotificationsScreen> createState() => _RiderNotificationsScreenState();
+  ConsumerState<RiderNotificationsScreen> createState() =>
+      _RiderNotificationsScreenState();
 }
 
 class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScreen> {
@@ -38,12 +39,41 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
         actions: [
           if (notifState.unreadCount > 0)
             TextButton(
-              onPressed: () => ref.read(riderNotificationProvider.notifier).markAllAsRead(),
-              child: const Text('Mark all read', style: TextStyle(color: RiderTheme.primaryDark)),
+              onPressed: () =>
+                  ref.read(riderNotificationProvider.notifier).markAllAsRead(),
+              child: const Text(
+                'Mark all read',
+                style: TextStyle(color: RiderTheme.primaryDark),
+              ),
+            ),
+          if (notifications.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: (value) {
+                if (value == 'clear') {
+                  _confirmClearNotifications(context);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'clear',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_sweep_rounded,
+                        color: Color(0xFFE53935),
+                      ),
+                      SizedBox(width: 10),
+                      Text('Clear all'),
+                    ],
+                  ),
+                ),
+              ],
             ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.read(riderNotificationProvider.notifier).fetchNotifications(),
+            onPressed: () =>
+                ref.read(riderNotificationProvider.notifier).fetchNotifications(),
           ),
         ],
       ),
@@ -51,7 +81,8 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
           ? const Center(child: CircularProgressIndicator(color: RiderTheme.primaryGreen))
           : RefreshIndicator(
               color: RiderTheme.primaryGreen,
-              onRefresh: () => ref.read(riderNotificationProvider.notifier).fetchNotifications(),
+              onRefresh: () =>
+                  ref.read(riderNotificationProvider.notifier).fetchNotifications(),
               child: notifications.isEmpty
                   ? _buildFallbackList(context)
                   : ListView.builder(
@@ -59,18 +90,129 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
                       itemCount: notifications.length,
                       itemBuilder: (context, index) {
                         final item = notifications[index];
-                        return _NotificationCard(
-                          notification: item,
-                          onTap: () {
-                            final id = (item['_id'] ?? item['id'] ?? '').toString();
-                            if (id.isNotEmpty) {
-                              ref.read(riderNotificationProvider.notifier).markAsRead(id);
-                            }
+                        final id = (item['_id'] ?? item['id'] ?? '').toString();
+                        return Dismissible(
+                          key: ValueKey(id.isEmpty ? 'notification-$index' : id),
+                          direction: id.isEmpty
+                              ? DismissDirection.none
+                              : DismissDirection.endToStart,
+                          background: _buildDeleteBackground(),
+                          confirmDismiss: (_) async {
+                            await _confirmDeleteNotification(context, id);
+                            return false;
                           },
+                          child: _NotificationCard(
+                            notification: item,
+                            onTap: () {
+                              if (id.isNotEmpty) {
+                                ref
+                                    .read(riderNotificationProvider.notifier)
+                                    .markAsRead(id);
+                              }
+                            },
+                            onDelete: id.isEmpty
+                                ? null
+                                : () => _confirmDeleteNotification(context, id),
+                          ),
                         );
                       },
                     ),
             ),
+    );
+  }
+
+  Widget _buildDeleteBackground() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.centerRight,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE53935),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Icon(Icons.delete_rounded, color: Colors.white),
+    );
+  }
+
+  Future<bool> _confirmDeleteNotification(
+    BuildContext context,
+    String id,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete notification?'),
+        content: const Text('This notification will be removed from your list.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFE53935),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return false;
+
+    final deleted = await ref
+        .read(riderNotificationProvider.notifier)
+        .deleteNotification(id);
+    if (!context.mounted) return deleted;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted ? 'Notification deleted' : 'Unable to delete notification',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return deleted;
+  }
+
+  Future<void> _confirmClearNotifications(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear all notifications?'),
+        content: const Text('All rider notifications in this list will be deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFE53935),
+            ),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final deletedCount = await ref
+        .read(riderNotificationProvider.notifier)
+        .deleteAllNotifications();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deletedCount > 0
+              ? 'Notifications cleared'
+              : 'No notifications were deleted',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -79,30 +221,38 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
       {
         '_id': '1',
         'title': 'New delivery request',
-        'body': "Delivery available from Amma's Spice Kitchen (3.8 km away). Tap to view.",
+        'body':
+            "Delivery available from Amma's Spice Kitchen (3.8 km away). Tap to view.",
         'read': false,
-        'createdAt': DateTime.now().subtract(const Duration(minutes: 5)).toIso8601String(),
+        'createdAt':
+            DateTime.now().subtract(const Duration(minutes: 5)).toIso8601String(),
       },
       {
         '_id': '2',
         'title': 'Delivery accepted',
-        'body': 'You accepted delivery for Order #HB-9142. Please proceed to kitchen.',
+        'body':
+            'You accepted delivery for Order #HB-9142. Please proceed to kitchen.',
         'read': false,
-        'createdAt': DateTime.now().subtract(const Duration(minutes: 25)).toIso8601String(),
+        'createdAt': DateTime.now()
+            .subtract(const Duration(minutes: 25))
+            .toIso8601String(),
       },
       {
         '_id': '3',
         'title': 'Customer location updated',
         'body': 'Nimal Jayasuriya updated drop notes: "Leave at security guard desk".',
         'read': true,
-        'createdAt': DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
+        'createdAt':
+            DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
       },
       {
         '_id': '4',
         'title': 'Delivery completed',
-        'body': 'Order #HB-8492 completed! Rs. 450.00 added to your daily earnings.',
+        'body':
+            'Order #HB-8492 completed! Rs. 450.00 added to your daily earnings.',
         'read': true,
-        'createdAt': DateTime.now().subtract(const Duration(hours: 5)).toIso8601String(),
+        'createdAt':
+            DateTime.now().subtract(const Duration(hours: 5)).toIso8601String(),
       },
     ];
 
@@ -122,10 +272,12 @@ class _RiderNotificationsScreenState extends ConsumerState<RiderNotificationsScr
 class _NotificationCard extends StatelessWidget {
   final Map<String, dynamic> notification;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
   const _NotificationCard({
     required this.notification,
     required this.onTap,
+    this.onDelete,
   });
 
   @override
@@ -150,7 +302,9 @@ class _NotificationCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: RiderTheme.softShadow,
           border: Border.all(
-            color: isRead ? Colors.transparent : RiderTheme.primaryGreen.withValues(alpha: 0.3),
+            color: isRead
+                ? Colors.transparent
+                : RiderTheme.primaryGreen.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -189,6 +343,17 @@ class _NotificationCard extends StatelessWidget {
                           decoration: const BoxDecoration(
                             color: RiderTheme.primaryGreen,
                             shape: BoxShape.circle,
+                          ),
+                        ),
+                      if (onDelete != null)
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Delete notification',
+                          onPressed: onDelete,
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: RiderTheme.textMuted,
+                            size: 20,
                           ),
                         ),
                     ],

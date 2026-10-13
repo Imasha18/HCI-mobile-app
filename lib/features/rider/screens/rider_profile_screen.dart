@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_routes.dart';
 import '../providers/rider_provider.dart';
@@ -25,8 +28,276 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // VEHICLE DETAILS EDIT DIALOG
+  // PERSONAL INFO EDIT DIALOG
   // ---------------------------------------------------------------------------
+  void _showEditPersonalInfoDialog(BuildContext context, Map<String, dynamic>? rider) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: rider?['name']?.toString() ?? '');
+    final phoneController = TextEditingController(text: rider?['phone']?.toString() ?? '');
+    final existingProfileImage = rider?['profileImage']?.toString() ?? '';
+    final imagePicker = ImagePicker();
+    Uint8List? selectedProfileImageBytes;
+    String? selectedProfileImageName;
+    bool isSaving = false;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            ImageProvider? profileImageProvider;
+            if (selectedProfileImageBytes != null) {
+              profileImageProvider = MemoryImage(selectedProfileImageBytes!);
+            } else if (existingProfileImage.isNotEmpty) {
+              profileImageProvider = CachedNetworkImageProvider(
+                RiderTheme.resolveImageUrl(existingProfileImage),
+              );
+            }
+
+            Future<void> pickProfileImage(ImageSource source) async {
+              try {
+                final picked = await imagePicker.pickImage(
+                  source: source,
+                  imageQuality: 85,
+                  maxWidth: 1200,
+                );
+                if (picked == null || !dialogCtx.mounted) return;
+                final bytes = await picked.readAsBytes();
+                setDialogState(() {
+                  selectedProfileImageBytes = bytes;
+                  selectedProfileImageName = picked.name;
+                  errorMessage = null;
+                });
+              } catch (e) {
+                if (!dialogCtx.mounted) return;
+                setDialogState(() {
+                  errorMessage = 'Unable to select profile photo: $e';
+                });
+              }
+            }
+
+            Future<void> showPhotoSourceSheet() async {
+              final source = await showModalBottomSheet<ImageSource>(
+                context: dialogCtx,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (sheetCtx) => SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.photo_library_outlined, color: RiderTheme.primaryGreen),
+                          title: const Text('Choose from gallery'),
+                          onTap: () => Navigator.pop(sheetCtx, ImageSource.gallery),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.photo_camera_outlined, color: RiderTheme.primaryGreen),
+                          title: const Text('Take a photo'),
+                          onTap: () => Navigator.pop(sheetCtx, ImageSource.camera),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+
+              if (source != null) {
+                await pickProfileImage(source);
+              }
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text(
+                'Edit Personal Info',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            CircleAvatar(
+                              radius: 42,
+                              backgroundColor: RiderTheme.secondaryGreen,
+                              backgroundImage: profileImageProvider,
+                              child: profileImageProvider != null
+                                  ? null
+                                  : const Icon(
+                                      Icons.person,
+                                      color: RiderTheme.primaryGreen,
+                                      size: 42,
+                                    ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: RiderTheme.primaryGreen,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: isSaving ? null : showPhotoSourceSheet,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: RiderTheme.primaryDark,
+                            side: BorderSide(color: RiderTheme.primaryGreen.withValues(alpha: 0.6)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.upload_file_rounded, size: 18),
+                          label: Text(selectedProfileImageBytes == null ? 'Upload Photo' : 'Change Photo'),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      if (errorMessage != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  errorMessage!,
+                                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      TextFormField(
+                        controller: nameController,
+                        enabled: !isSaving,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Name is required';
+                          }
+                          if (value.trim().length < 2) {
+                            return 'Enter a valid name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        enabled: !isSaving,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                        validator: (value) {
+                          final phone = value?.trim() ?? '';
+                          if (phone.isEmpty) {
+                            return 'Phone number is required';
+                          }
+                          if (phone.length < 9) {
+                            return 'Enter a valid phone number';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: RiderTheme.textMuted)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: RiderTheme.primaryGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+
+                          setDialogState(() {
+                            isSaving = true;
+                            errorMessage = null;
+                          });
+
+                          final res = await ref.read(riderProvider.notifier).updatePersonalInfo(
+                                name: nameController.text.trim(),
+                                phone: phoneController.text.trim(),
+                                profileImageBytes: selectedProfileImageBytes,
+                                profileImageName: selectedProfileImageName,
+                              );
+
+                          if (!dialogCtx.mounted) return;
+
+                          if (res['success'] == true) {
+                            Navigator.pop(ctx);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Personal information updated successfully!'),
+                                  backgroundColor: RiderTheme.primaryGreen,
+                                ),
+                              );
+                            }
+                          } else {
+                            setDialogState(() {
+                              isSaving = false;
+                              errorMessage = res['message']?.toString() ?? 'Failed to update personal information';
+                            });
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showEditVehicleDialog(BuildContext context, Map<String, dynamic>? currentVehicle) {
     final typeController = TextEditingController(text: currentVehicle?['type'] ?? 'Motorbike');
     final modelController = TextEditingController(text: currentVehicle?['model'] ?? '');
@@ -174,6 +445,324 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
   // ---------------------------------------------------------------------------
   // BANK ACCOUNT MODAL
   // ---------------------------------------------------------------------------
+  List<Map<String, dynamic>> _payoutAccountsFromRider(Map<String, dynamic>? rider) {
+    final rawAccounts = rider?['payoutAccounts'];
+    if (rawAccounts is List && rawAccounts.isNotEmpty) {
+      return rawAccounts
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .where((item) => (item['accountNumber']?.toString().trim() ?? '').isNotEmpty)
+          .toList();
+    }
+
+    final bankDetails = RiderTheme.safeMap(rider?['bankDetails']);
+    final accountNumber = bankDetails?['accountNumber']?.toString().trim() ?? '';
+    if (accountNumber.isEmpty) return [];
+
+    return [
+      {
+        'accountId': 'legacy-bank-account',
+        'accountHolderName': bankDetails?['accountHolderName']?.toString() ?? rider?['name']?.toString() ?? '',
+        'bankName': (bankDetails?['bankName']?.toString().trim().isNotEmpty == true)
+            ? bankDetails!['bankName'].toString().trim()
+            : 'Saved Bank Account',
+        'branchName': bankDetails?['branchName']?.toString() ?? '',
+        'accountNumber': accountNumber,
+      }
+    ];
+  }
+
+  String _currentPayoutAccountId(Map<String, dynamic>? rider, List<Map<String, dynamic>> accounts) {
+    final selected = rider?['currentPayoutAccountId']?.toString() ?? '';
+    if (accounts.any((account) => account['accountId']?.toString() == selected)) {
+      return selected;
+    }
+    return accounts.isNotEmpty ? accounts.first['accountId'].toString() : '';
+  }
+
+  String _maskedAccountNumber(String value) {
+    final digits = value.trim();
+    if (digits.length <= 4) return digits;
+    return '**** ${digits.substring(digits.length - 4)}';
+  }
+
+  Future<Map<String, dynamic>?> _showAddBankAccountDialog(BuildContext context, Map<String, dynamic>? rider) {
+    final formKey = GlobalKey<FormState>();
+    final holderController = TextEditingController(text: rider?['name']?.toString() ?? '');
+    final bankController = TextEditingController();
+    final branchController = TextEditingController();
+    final accountController = TextEditingController();
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Add Bank Account', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: holderController,
+                  decoration: const InputDecoration(
+                    labelText: 'Account Holder Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty) ? 'Account holder name is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: bankController,
+                  decoration: const InputDecoration(
+                    labelText: 'Bank Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.account_balance_rounded),
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty) ? 'Bank name is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: branchController,
+                  decoration: const InputDecoration(
+                    labelText: 'Branch Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_city_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: accountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Account Number',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.numbers_rounded),
+                  ),
+                  validator: (value) {
+                    final account = value?.trim() ?? '';
+                    if (account.isEmpty) return 'Account number is required';
+                    if (account.length < 5) return 'Enter a valid account number';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: RiderTheme.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: RiderTheme.primaryGreen, foregroundColor: Colors.white),
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(ctx, {
+                'accountId': 'payout-${DateTime.now().millisecondsSinceEpoch}',
+                'accountHolderName': holderController.text.trim(),
+                'bankName': bankController.text.trim(),
+                'branchName': branchController.text.trim(),
+                'accountNumber': accountController.text.trim(),
+                'createdAt': DateTime.now().toIso8601String(),
+              });
+            },
+            child: const Text('Save Account'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPayoutAccountsModal(BuildContext context) {
+    final rider = ref.read(riderProvider).rider;
+    var accounts = _payoutAccountsFromRider(rider);
+    var currentAccountId = _currentPayoutAccountId(rider, accounts);
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          final canAdd = accounts.length < 3;
+          final currentMatches = accounts.where((account) => account['accountId']?.toString() == currentAccountId);
+          final currentAccount = currentMatches.isNotEmpty ? currentMatches.first : null;
+
+          Future<void> persist(List<Map<String, dynamic>> nextAccounts, String nextCurrentId) async {
+            setModalState(() => isSaving = true);
+            final res = await ref.read(riderProvider.notifier).updateProfile({
+              'payoutAccounts': nextAccounts,
+              'currentPayoutAccountId': nextCurrentId,
+            });
+            if (!modalCtx.mounted) return;
+            if (res['success'] == true) {
+              setModalState(() {
+                accounts = List<Map<String, dynamic>>.from(nextAccounts);
+                currentAccountId = nextCurrentId;
+                isSaving = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(backgroundColor: RiderTheme.primaryGreen, content: Text('Payout accounts updated')),
+              );
+            } else {
+              setModalState(() => isSaving = false);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(res['message']?.toString() ?? 'Failed to update payout accounts')),
+              );
+            }
+          }
+
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 16,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Bank Accounts & Payouts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      Text('${accounts.length}/3', style: const TextStyle(color: RiderTheme.textMuted)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    currentAccount == null
+                        ? 'Add an account to receive rider payouts.'
+                        : 'Current payout: ${currentAccount['bankName']} - ${_maskedAccountNumber(currentAccount['accountNumber']?.toString() ?? '')}',
+                    style: const TextStyle(fontSize: 12, color: RiderTheme.textMuted),
+                  ),
+                  const SizedBox(height: 16),
+                  if (accounts.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F7F3),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: RiderTheme.primaryGreen.withValues(alpha: 0.25)),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(Icons.account_balance_rounded, color: RiderTheme.primaryGreen, size: 36),
+                          SizedBox(height: 8),
+                          Text('No saved bank accounts', style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text('Save up to 3 accounts and choose one for payouts.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: RiderTheme.textMuted)),
+                        ],
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(modalCtx).size.height * 0.42,
+                      ),
+                      child: RadioGroup<String>(
+                        groupValue: currentAccountId,
+                        onChanged: (value) {
+                          if (isSaving || value == null) return;
+                          persist(accounts, value);
+                        },
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: accounts.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final account = accounts[index];
+                            final accountId = account['accountId']?.toString() ?? '';
+                            final selected = accountId == currentAccountId;
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: selected ? RiderTheme.secondaryGreen : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: selected ? RiderTheme.primaryGreen : Colors.grey.shade200),
+                              ),
+                              child: ListTile(
+                                onTap: isSaving || selected ? null : () => persist(accounts, accountId),
+                                leading: Radio<String>(
+                                  value: accountId,
+                                  activeColor: RiderTheme.primaryGreen,
+                                ),
+                                title: Text(account['bankName']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text(
+                                  '${account['accountHolderName'] ?? ''}\n${account['branchName'] ?? 'Branch not set'} - ${_maskedAccountNumber(account['accountNumber']?.toString() ?? '')}',
+                                ),
+                                isThreeLine: true,
+                                trailing: IconButton(
+                                  tooltip: 'Delete account',
+                                  onPressed: isSaving
+                                      ? null
+                                      : () {
+                                          final nextAccounts = accounts.where((item) => item['accountId']?.toString() != accountId).toList();
+                                          final nextCurrentId = currentAccountId == accountId
+                                              ? (nextAccounts.isNotEmpty ? nextAccounts.first['accountId'].toString() : '')
+                                              : currentAccountId;
+                                          persist(nextAccounts, nextCurrentId);
+                                        },
+                                  icon: const Icon(Icons.delete_outline_rounded, color: RiderTheme.statusRed),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: (!canAdd || isSaving)
+                          ? null
+                          : () async {
+                              final account = await _showAddBankAccountDialog(context, ref.read(riderProvider).rider);
+                              if (account == null || !modalCtx.mounted) return;
+                              final nextAccounts = [...accounts, account];
+                              final nextCurrentId = currentAccountId.isEmpty ? account['accountId'].toString() : currentAccountId;
+                              await persist(nextAccounts, nextCurrentId);
+                            },
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(canAdd ? 'Add Bank Account' : 'Maximum 3 Accounts Saved'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: RiderTheme.primaryGreen,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ignore: unused_element
   void _showBankAccountModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1018,9 +1607,18 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
     final name = rider?['name'] as String? ?? 'Delivery Rider';
     final email = rider?['email'] as String? ?? '';
     final phone = rider?['phone'] as String? ?? '';
-    final profileImage = rider?['profileImage'] as String?;
+    final profileImage = RiderTheme.resolveImageUrl(rider?['profileImage'] as String?);
     final rating = (rider?['rating'] ?? 5.0).toString();
     final vehicle = rider?['vehicleDetails'] as Map<String, dynamic>?;
+    final payoutAccounts = _payoutAccountsFromRider(rider);
+    final currentPayoutAccountId = _currentPayoutAccountId(rider, payoutAccounts);
+    final currentPayoutAccounts = payoutAccounts.where(
+      (account) => account['accountId']?.toString() == currentPayoutAccountId,
+    );
+    final currentPayoutAccount = currentPayoutAccounts.isNotEmpty ? currentPayoutAccounts.first : null;
+    final payoutSubtitle = currentPayoutAccount == null
+        ? 'No payout account selected'
+        : '${currentPayoutAccount['bankName'] ?? 'Bank account'} - ${_maskedAccountNumber(currentPayoutAccount['accountNumber']?.toString() ?? '')}';
 
     final verificationStatus = rider?['verificationStatus'] as String? ?? 'not_submitted';
     final isVerified = rider?['isVerified'] == true || verificationStatus == 'approved';
@@ -1076,10 +1674,10 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                   CircleAvatar(
                     radius: 34,
                     backgroundColor: RiderTheme.secondaryGreen,
-                    backgroundImage: profileImage != null && profileImage.isNotEmpty
+                    backgroundImage: profileImage.isNotEmpty
                         ? CachedNetworkImageProvider(profileImage)
                         : null,
-                    child: profileImage == null || profileImage.isEmpty
+                    child: profileImage.isEmpty
                         ? const Icon(Icons.person, color: RiderTheme.primaryGreen, size: 36)
                         : null,
                   ),
@@ -1089,18 +1687,38 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(
-                                name,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                overflow: TextOverflow.ellipsis,
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      name,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (isVerified) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.verified, color: RiderTheme.primaryGreen, size: 18),
+                                  ],
+                                ],
                               ),
                             ),
-                            if (isVerified) ...[
-                              const SizedBox(width: 6),
-                              const Icon(Icons.verified, color: RiderTheme.primaryGreen, size: 18),
-                            ],
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: RiderTheme.primaryDark,
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              onPressed: () => _showEditPersonalInfoDialog(context, rider),
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('Edit'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 3),
@@ -1470,9 +2088,9 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                       child: const Icon(Icons.account_balance_rounded, color: Color(0xFF1565C0), size: 20),
                     ),
                     title: const Text('Bank Account & Payouts', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Commercial Bank · Direct Deposit', style: TextStyle(fontSize: 12)),
+                    subtitle: Text(payoutSubtitle, style: const TextStyle(fontSize: 12)),
                     trailing: const Icon(Icons.chevron_right_rounded, color: RiderTheme.textMuted),
-                    onTap: () => _showBankAccountModal(context),
+                    onTap: () => _showPayoutAccountsModal(context),
                   ),
                   const Divider(height: 1),
                   ListTile(

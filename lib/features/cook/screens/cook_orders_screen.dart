@@ -23,6 +23,24 @@ class _CookOrdersScreenState extends ConsumerState<CookOrdersScreen> {
     'Completed',
   ];
 
+  Map<String, dynamic>? _safeMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  String _safeText(dynamic value, [String fallback = '']) {
+    if (value == null) return fallback;
+    if (value is String) return value.trim().isEmpty ? fallback : value;
+    if (value is num || value is bool) return value.toString();
+    final map = _safeMap(value);
+    if (map != null) {
+      final objectId = map[r'$oid'] ?? map['_id'] ?? map['id'] ?? map['value'];
+      return objectId == null ? fallback : _safeText(objectId, fallback);
+    }
+    return fallback;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -131,17 +149,17 @@ class _CookOrdersScreenState extends ConsumerState<CookOrdersScreen> {
                           itemCount: state.orders.length,
                           itemBuilder: (context, index) {
                             final order = state.orders[index] as Map<String, dynamic>;
-                            final orderId = order['_id'] as String? ?? '';
+                            final orderId = _safeText(order['_id']);
                             final shortId = orderId.length > 6
                                 ? orderId.substring(orderId.length - 6).toUpperCase()
                                 : orderId;
-                            final customer = order['customer'] as Map<String, dynamic>?;
-                            final customerName = customer?['name'] as String? ?? 'Customer';
+                            final customer = _safeMap(order['customer']);
+                            final customerName = _safeText(customer?['name'], 'Customer');
                             final total = (order['total'] as num?)?.toDouble() ?? 0.0;
-                            final status = (order['status'] as String?) ?? 'Order Received';
+                            final status = _safeText(order['status'], 'Order Received');
                             final items = (order['items'] as List<dynamic>?) ?? [];
-                            final createdAt = order['createdAt'] as String?;
-                            final timeDisplay = createdAt != null && createdAt.length >= 16
+                            final createdAt = _safeText(order['createdAt']);
+                            final timeDisplay = createdAt.length >= 16
                                 ? '${createdAt.substring(11, 16)} • ${createdAt.substring(0, 10)}'
                                 : 'Just now';
 
@@ -245,8 +263,8 @@ class _CookOrdersScreenState extends ConsumerState<CookOrdersScreen> {
                                           // Meals List preview
                                           ...items.map((item) {
                                             final qty = item['quantity'] ?? 1;
-                                            final mealObj = item['meal'] as Map<String, dynamic>?;
-                                            final mName = item['name'] ?? mealObj?['name'] ?? 'Meal item';
+                                            final mealObj = _safeMap(item['meal']);
+                                            final mName = _safeText(item['name'], _safeText(mealObj?['name'], 'Meal item'));
                                             return Padding(
                                               padding: const EdgeInsets.only(bottom: 2),
                                               child: Text(

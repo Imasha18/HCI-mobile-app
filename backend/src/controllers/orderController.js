@@ -22,6 +22,69 @@ const VALID_ORDER_TRANSITIONS = {
   'cancelled': [],
 };
 
+function deliveryAddressText(order, customerUser) {
+  const raw = order.deliveryAddress;
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  if (raw && typeof raw === 'object' && raw.address) return String(raw.address).trim();
+  return customerUser?.address || '18 Flower Road, Colombo 07, Sri Lanka';
+}
+
+async function createOrOpenDeliveryRequestForReadyOrder(order) {
+  const [cookUser, customerUser] = await Promise.all([
+    User.findById(order.cook),
+    User.findById(order.customer),
+  ]);
+
+  const pickupAddress = cookUser?.address || '45/2 Galle Road, Colombo 03, Sri Lanka';
+  const dropAddress = deliveryAddressText(order, customerUser);
+
+  let delivery = await Delivery.findOne({
+    $or: [{ orderId: order._id }, { order: order._id }],
+  });
+
+  if (!delivery) {
+    delivery = await Delivery.create({
+      orderId: order._id,
+      order: order._id,
+      cookId: order.cook,
+      customerId: order.customer,
+      pickupLocation: {
+        address: pickupAddress,
+        latitude: cookUser?.latitude || 6.9034,
+        longitude: cookUser?.longitude || 79.8546,
+      },
+      deliveryLocation: {
+        address: dropAddress,
+        latitude: customerUser?.latitude || 6.9128,
+        longitude: customerUser?.longitude || 79.8653,
+      },
+      status: 'AVAILABLE',
+      deliveryFee: 350.0,
+      distanceKm: 3.8,
+      estimatedMinutes: 20,
+    });
+  } else if (delivery.status === 'CANCELLED') {
+    delivery.status = 'AVAILABLE';
+    delivery.rider = undefined;
+    delivery.riderId = undefined;
+    delivery.cancellationReason = undefined;
+    await delivery.save();
+  }
+
+  if (delivery.status === 'AVAILABLE') {
+    const riders = await User.find({ role: 'rider' }).select('_id').limit(25);
+    await Promise.all(riders.map((rider) =>
+      Notification.create({
+        user: rider._id,
+        title: 'New Delivery Request',
+        body: `Order #${order.id} is ready for pickup from ${cookUser?.kitchenName || cookUser?.name || 'Home Cook'}.`,
+      })
+    ));
+  }
+
+  return delivery;
+}
+
 async function listOrders(req, res) {
   // If user is cook, return cook's orders, else customer's orders
   const filter = req.user.role === 'cook' ? { cook: req.user.id } : { customer: req.user.id };
@@ -153,28 +216,6 @@ async function createOrder(req, res) {
 
   await Cart.deleteOne({ customer: req.user.id });
 
-  // Connect to Delivery Module: Immediately create available delivery request for riders
-  await Delivery.create({
-    orderId: order._id,
-    order: order._id,
-    cookId: cookId,
-    customerId: req.user.id,
-    pickupLocation: {
-      address: pickupAddress,
-      latitude: cookUser?.latitude || 6.9034,
-      longitude: cookUser?.longitude || 79.8546,
-    },
-    deliveryLocation: {
-      address: deliveryAddressString,
-      latitude: customerUser?.latitude || 6.9128,
-      longitude: customerUser?.longitude || 79.8653,
-    },
-    status: 'AVAILABLE',
-    deliveryFee: 350.0,
-    distanceKm: 3.8,
-    estimatedMinutes: 20,
-  });
-
   // Notifications
   await Notification.create({
     user: req.user.id,
@@ -189,18 +230,6 @@ async function createOrder(req, res) {
       body: `You received a new order #${order.id} totaling Rs. ${total.toFixed(2)}.`,
     });
   }
-
-  // Notify riders of new available delivery
-  try {
-    const riders = await User.find({ role: 'rider' }).limit(10);
-    for (const rider of riders) {
-      await Notification.create({
-        user: rider._id,
-        title: 'New Delivery Request',
-        body: `New delivery available for Order #${order.id} from ${cookUser?.kitchenName || cookUser?.name || 'Home Cook'}.`,
-      });
-    }
-  } catch (_) {}
 
   return sendSuccess(res, order, 'Order created', 201);
 }
@@ -289,6 +318,13 @@ async function updateOrderStatus(req, res) {
   const currentStatusNorm = (order.status || 'Order Received').trim().toLowerCase();
   const nextStatusNorm = status.trim().toLowerCase();
 
+  if (currentStatusNorm === nextStatusNorm) {
+    if (nextStatusNorm === 'ready for pickup' || nextStatusNorm === 'ready') {
+      await createOrOpenDeliveryRequestForReadyOrder(order);
+    }
+    return sendSuccess(res, order, `Order is already ${order.status}`);
+  }
+
   const allowedNext = VALID_ORDER_TRANSITIONS[currentStatusNorm];
   if (allowedNext && !allowedNext.includes(nextStatusNorm)) {
     return res.status(400).json({
@@ -299,6 +335,10 @@ async function updateOrderStatus(req, res) {
 
   order.status = status;
   await order.save();
+
+  if (nextStatusNorm === 'ready for pickup' || nextStatusNorm === 'ready') {
+    await createOrOpenDeliveryRequestForReadyOrder(order);
+  }
 
   // If completed or ready, register earnings record if not yet created
   if (status === 'Completed' || status === 'Ready For Pickup') {

@@ -94,6 +94,61 @@ function calculateRiderVerificationStatus(docs) {
   return { verificationStatus: 'not_submitted', isVerified: false };
 }
 
+function normalizePayoutAccounts(accounts) {
+  if (!Array.isArray(accounts)) {
+    return [];
+  }
+
+  return accounts.slice(0, 3).map((account, index) => {
+    const accountId = String(account.accountId || account.id || `payout-${Date.now()}-${index}`).trim();
+    return {
+      accountId,
+      accountHolderName: String(account.accountHolderName || '').trim(),
+      bankName: String(account.bankName || '').trim(),
+      branchName: String(account.branchName || '').trim(),
+      accountNumber: String(account.accountNumber || '').trim(),
+      createdAt: account.createdAt || new Date(),
+    };
+  }).filter((account) =>
+    account.accountId &&
+    account.accountHolderName &&
+    account.bankName &&
+    account.accountNumber
+  );
+}
+
+function legacyPayoutAccountFromBankDetails(rider) {
+  const accountNumber = String(rider?.bankDetails?.accountNumber || '').trim();
+  if (!accountNumber) return null;
+
+  return {
+    accountId: 'legacy-bank-account',
+    accountHolderName: String(rider.bankDetails.accountHolderName || rider.name || '').trim() || 'Account Holder',
+    bankName: String(rider.bankDetails.bankName || '').trim() || 'Saved Bank Account',
+    branchName: String(rider.bankDetails.branchName || '').trim(),
+    accountNumber,
+    createdAt: rider.createdAt || new Date(),
+  };
+}
+
+function ensurePayoutAccountsForResponse(riderObj) {
+  const payoutAccounts = normalizePayoutAccounts(riderObj.payoutAccounts || []);
+  if (payoutAccounts.length > 0) {
+    riderObj.payoutAccounts = payoutAccounts;
+    if (!payoutAccounts.some((account) => account.accountId === riderObj.currentPayoutAccountId)) {
+      riderObj.currentPayoutAccountId = payoutAccounts[0].accountId;
+    }
+    return riderObj;
+  }
+
+  const legacyAccount = legacyPayoutAccountFromBankDetails(riderObj);
+  if (legacyAccount) {
+    riderObj.payoutAccounts = [legacyAccount];
+    riderObj.currentPayoutAccountId = legacyAccount.accountId;
+  }
+  return riderObj;
+}
+
 // GET /api/rider/profile
 async function getRiderProfile(req, res) {
   const rider = await User.findById(req.user.id).select('-password');
@@ -103,6 +158,7 @@ async function getRiderProfile(req, res) {
   riderObj.verificationStatus = riderObj.verificationStatus || 'not_submitted';
   riderObj.isVerified = riderObj.isVerified ?? (riderObj.verificationStatus === 'approved');
   riderObj.verificationDocuments = normalizeVerificationDocuments(riderObj.verificationDocuments);
+  ensurePayoutAccountsForResponse(riderObj);
 
   return sendSuccess(res, riderObj);
 }
@@ -134,8 +190,81 @@ async function updateRiderProfile(req, res) {
       rider.profileImage = String(req.body.profileImage).trim();
     }
 
+    if (req.file) {
+      const uploaded = await uploadImage(req.file, 'homebite/profiles');
+      if (uploaded) {
+        rider.profileImage = uploaded;
+      }
+    }
+
     if (req.body.isOnline !== undefined) {
       rider.isOnline = Boolean(req.body.isOnline);
+    }
+
+    if (req.body.payoutAccounts !== undefined) {
+      if (!Array.isArray(req.body.payoutAccounts)) {
+        return res.status(400).json({ success: false, message: 'Payout accounts must be a list' });
+      }
+
+      if (req.body.payoutAccounts.length > 3) {
+        return res.status(400).json({ success: false, message: 'You can save a maximum of 3 payout accounts' });
+      }
+
+      const existingPayoutAccounts = normalizePayoutAccounts(rider.payoutAccounts || []);
+      let payoutAccounts = normalizePayoutAccounts(req.body.payoutAccounts);
+      const legacyAccount = legacyPayoutAccountFromBankDetails(rider);
+      const hasLegacyInRequest = payoutAccounts.some((account) => account.accountId === legacyAccount?.accountId);
+      if (
+        legacyAccount &&
+        existingPayoutAccounts.length === 0 &&
+        payoutAccounts.length > 0 &&
+        !hasLegacyInRequest &&
+        payoutAccounts.length < 3
+      ) {
+        payoutAccounts = [legacyAccount, ...payoutAccounts];
+      }
+      rider.payoutAccounts = payoutAccounts;
+
+      const requestedCurrentId = String(req.body.currentPayoutAccountId || '').trim();
+      const hasRequestedCurrent = payoutAccounts.some((account) => account.accountId === requestedCurrentId);
+      rider.currentPayoutAccountId = hasRequestedCurrent
+        ? requestedCurrentId
+        : (payoutAccounts[0]?.accountId || '');
+
+      if (payoutAccounts[0]) {
+        const current = payoutAccounts.find((account) => account.accountId === rider.currentPayoutAccountId) || payoutAccounts[0];
+        rider.bankDetails = {
+          accountHolderName: current.accountHolderName,
+          bankName: current.bankName,
+          branchName: current.branchName,
+          accountNumber: current.accountNumber,
+          isVerified: rider.bankDetails?.isVerified || false,
+        };
+      } else {
+        rider.bankDetails = {
+          accountHolderName: '',
+          bankName: '',
+          branchName: '',
+          accountNumber: '',
+          isVerified: false,
+        };
+      }
+    } else if (req.body.currentPayoutAccountId !== undefined) {
+      const requestedCurrentId = String(req.body.currentPayoutAccountId || '').trim();
+      const payoutAccounts = normalizePayoutAccounts(rider.payoutAccounts || []);
+      const current = payoutAccounts.find((account) => account.accountId === requestedCurrentId);
+      if (!current) {
+        return res.status(400).json({ success: false, message: 'Selected payout account was not found' });
+      }
+
+      rider.currentPayoutAccountId = requestedCurrentId;
+      rider.bankDetails = {
+        accountHolderName: current.accountHolderName,
+        bankName: current.bankName,
+        branchName: current.branchName,
+        accountNumber: current.accountNumber,
+        isVerified: rider.bankDetails?.isVerified || false,
+      };
     }
 
     // 2. Partial updates for vehicle details without overwriting existing data with null
@@ -205,6 +334,8 @@ async function updateRiderProfile(req, res) {
 
     // Explicitly mark modified for embedded Mongoose subdocument
     rider.markModified('vehicleDetails');
+    rider.markModified('bankDetails');
+    rider.markModified('payoutAccounts');
     await rider.save();
 
     const updated = await User.findById(rider._id).select('-password');
@@ -212,6 +343,7 @@ async function updateRiderProfile(req, res) {
     riderObj.verificationStatus = riderObj.verificationStatus || 'not_submitted';
     riderObj.isVerified = riderObj.isVerified ?? (riderObj.verificationStatus === 'approved');
     riderObj.verificationDocuments = normalizeVerificationDocuments(riderObj.verificationDocuments);
+    ensurePayoutAccountsForResponse(riderObj);
 
     return sendSuccess(res, riderObj, 'Profile updated successfully');
   } catch (error) {
@@ -414,9 +546,10 @@ async function getRiderDashboard(req, res) {
 
   // Current active delivery (ACCEPTED, PICKED_UP, or IN_TRANSIT)
   const currentDelivery = await Delivery.findOne({
-    rider: riderId,
+    $or: [{ rider: riderId }, { riderId }],
     status: { $in: ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'] },
   })
+    .sort({ createdAt: 1 })
     .populate('orderId')
     .populate('cookId', 'name kitchenName phone address profileImage')
     .populate('customerId', 'name phone address');
@@ -454,10 +587,24 @@ async function getRiderDashboard(req, res) {
 // GET /api/rider/deliveries (History)
 async function getRiderDeliveries(req, res) {
   const riderId = req.user.id;
-  const filter = { rider: riderId };
+  const filter = {
+    $or: [{ rider: riderId }, { riderId }],
+    $and: [
+      {
+        $or: [
+          { riderHistoryDeletedAt: null },
+          { riderHistoryDeletedAt: { $exists: false } },
+        ],
+      },
+    ],
+  };
 
-  if (req.query.status && req.query.status !== 'ALL') {
+  if (req.query.status === 'ALL') {
+    // Keep all rider deliveries when explicitly requested.
+  } else if (req.query.status) {
     filter.status = req.query.status.toUpperCase();
+  } else {
+    filter.status = 'DELIVERED';
   }
 
   const { page, limit, skip } = parsePagination(req.query, 10);
@@ -475,6 +622,48 @@ async function getRiderDeliveries(req, res) {
     .limit(limit);
 
   return sendSuccess(res, deliveries, 'Success', 200, buildPaginationMeta(page, limit, total, deliveries.length));
+}
+
+// DELETE /api/rider/deliveries/:id/history
+async function hideRiderDeliveryHistoryItem(req, res) {
+  const delivery = await Delivery.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      $or: [{ rider: req.user.id }, { riderId: req.user.id }],
+    },
+    { riderHistoryDeletedAt: new Date() },
+    { new: true }
+  );
+
+  if (!delivery) {
+    return res.status(404).json({ success: false, message: 'Delivery history item not found' });
+  }
+
+  return sendSuccess(res, {}, 'Delivery removed from rider history');
+}
+
+// DELETE /api/rider/deliveries/history
+async function clearRiderDeliveryHistory(req, res) {
+  const result = await Delivery.updateMany(
+    {
+      $or: [{ rider: req.user.id }, { riderId: req.user.id }],
+      $and: [
+        {
+          $or: [
+            { riderHistoryDeletedAt: null },
+            { riderHistoryDeletedAt: { $exists: false } },
+          ],
+        },
+      ],
+    },
+    { riderHistoryDeletedAt: new Date() }
+  );
+
+  return sendSuccess(
+    res,
+    { modifiedCount: result.modifiedCount || 0 },
+    'Delivery history cleared'
+  );
 }
 
 // GET /api/rider/earnings
@@ -562,9 +751,14 @@ module.exports = {
   submitVerification,
   getRiderDashboard,
   getRiderDeliveries,
+  hideRiderDeliveryHistoryItem,
+  clearRiderDeliveryHistory,
   getRiderEarnings,
   updateRiderLocation,
   normalizeDocKey,
   normalizeVerificationDocuments,
   calculateRiderVerificationStatus,
+  normalizePayoutAccounts,
+  legacyPayoutAccountFromBankDetails,
+  ensurePayoutAccountsForResponse,
 };

@@ -7,6 +7,8 @@ const {
   submitVerification,
   getRiderDashboard,
   getRiderDeliveries,
+  hideRiderDeliveryHistoryItem,
+  clearRiderDeliveryHistory,
   getRiderEarnings,
   updateRiderLocation,
 } = require('../controllers/riderController');
@@ -21,8 +23,8 @@ router.use(authenticate, authorizeRoles('rider'));
 
 router.get('/profile', getRiderProfile);
 router.get('/me', getRiderProfile);
-router.put('/profile', updateRiderProfile);
-router.patch('/profile', updateRiderProfile);
+router.put('/profile', upload.single('profileImage'), updateRiderProfile);
+router.patch('/profile', upload.single('profileImage'), updateRiderProfile);
 
 // Document & Verification
 router.post('/documents/upload', upload.single('file'), uploadOrSaveRiderDocument);
@@ -36,6 +38,8 @@ router.get('/verification', getRiderProfile);
 router.get('/dashboard', getRiderDashboard);
 router.get('/summary', getRiderDashboard);
 router.get('/deliveries', getRiderDeliveries);
+router.delete('/deliveries/history', clearRiderDeliveryHistory);
+router.delete('/deliveries/:id/history', hideRiderDeliveryHistoryItem);
 router.get('/earnings', getRiderEarnings);
 router.patch('/location', updateRiderLocation);
 

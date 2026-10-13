@@ -87,11 +87,38 @@ class EarningsNotifier extends StateNotifier<RiderEarningsState> {
     try {
       final response = await _client.dio.get('/rider/deliveries');
       final list = (response.data['data'] as List<dynamic>?) ?? [];
-      final typed = list.cast<Map<String, dynamic>>();
+      final typed = list.whereType<Map<String, dynamic>>().toList();
       state = state.copyWith(history: typed);
     } catch (_) {
       // Keep existing history
     }
+  }
+
+  Future<bool> removeHistoryItem(String id) async {
+    try {
+      await _client.dio.delete('/rider/deliveries/$id/history');
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+
+    final updatedHistory = state.history
+        .where((item) => (item['_id'] ?? item['id']).toString() != id)
+        .toList();
+    state = state.copyWith(history: updatedHistory);
+    return true;
+  }
+
+  Future<bool> clearHistory() async {
+    try {
+      await _client.dio.delete('/rider/deliveries/history');
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+
+    state = state.copyWith(history: const []);
+    return true;
   }
 
   void reset() {
